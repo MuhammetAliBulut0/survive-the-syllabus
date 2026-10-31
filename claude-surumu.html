@@ -406,7 +406,7 @@ textarea{min-height:90px;resize:vertical}
       <div class="fWarn" id="fWarn" hidden></div>
     </div>
     <div class="fBot">
-      <div class="fSnd"><label for="fSound">Ses</label><select id="fSound"><option value="off">Sessiz</option><option value="rain">Yağmur</option><option value="library">Kütüphane</option><option value="fire">Şömine</option></select>
+      <div class="fSnd"><label for="fSound">Ses</label><select id="fSound"></select>
         <input type="range" id="fVol" min="0" max="1" step="0.05" aria-label="Ses düzeyi"></div>
       <div class="fBtns"><button class="fb" id="fQuit">Vazgeç</button><button class="fb main" id="fNext" hidden>Yeni oturuma başla</button></div>
     </div>
@@ -451,12 +451,25 @@ const lsGet=()=>{try{return JSON.parse(localStorage.getItem(LS)||"null")}catch(e
 const lsSet=v=>{try{localStorage.setItem(LS,JSON.stringify(v))}catch(e){}};
 function trimLogs(){ ["focusLog","reviewLog","taskLog"].forEach(k=>{ if(S[k]&&S[k].length>500) S[k]=S[k].slice(-500); }); }
 async function save(){
-  trimLogs(); lsSet(S); scheduleBoard(); if(!docRef) return;
+  trimLogs(); S.savedAt=now(); lsSet(S); scheduleBoard(); if(!docRef) return;
   if(writing){pending=true;return} writing=true;
   try{ await docRef.set(JSON.parse(JSON.stringify(S))); $("saveLbl").textContent="İlerlemen hesabına kaydedildi."; }
   catch(e){ $("saveLbl").textContent = "Hesaba kaydedilemedi, bu tarayıcıda tutuluyor."; }
   writing=false; if(pending){pending=false;save()}
 }
+/* cihazlar arası eşitleme: başka cihazda daha yeni kayıt varsa onu al */
+let pulling=false;
+async function pull(){
+  if(!docRef||writing||pending||pulling||document.visibilityState!=="visible") return; pulling=true;
+  try{ const s=await docRef.get();
+    if(s.exists){ const d=s.data(); if((d.savedAt||0)>(S.savedAt||0)+500){ const keepFocusUI=!!S.focus;
+      S=Object.assign(fresh(),d); migrate(); lsSet(S); render(); if(!keepFocusUI&&S.focus) lockScreen(); toast("Diğer cihazındaki ilerleme yüklendi"); } } }
+  catch(e){}
+  pulling=false;
+}
+setInterval(pull,15000);
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") setTimeout(pull,300); });
+window.addEventListener("focus",()=>setTimeout(pull,300));
 function migrate(){ const f=fresh(); for(const k in f) if(S[k]===undefined) S[k]=f[k];
   S.tot=Object.assign({focus:0,focusMin:0,reviews:0},S.tot); S.shop=Object.assign({owned:[],eq:{}},S.shop); S.settings=Object.assign({len:25,sound:"off",vol:0.5},S.settings); }
 async function initStore(){
@@ -624,7 +637,7 @@ function renderFocusOv(){
   $("fTaskLbl").textContent=f.phase==="focus"?(t?t.title:(f.course||"Serbest çalışma")):"20 saniye boyunca 6 metre uzağa bak. Su iç, gerin.";
   $("fQuit").textContent=f.phase==="focus"?(focusQuit?"Emin misin? Oturum sayılmaz.":"Vazgeç"):"Molayı bitir";
   $("fNext").hidden=f.phase!=="break";
-  $("fSound").value=S.settings.sound; $("fVol").value=S.settings.vol;
+  if(!$("fSound").options.length) $("fSound").innerHTML=soundOptions(S.settings.sound); $("fSound").value=S.settings.sound; $("fVol").value=S.settings.vol;
   ov.classList.toggle("brk",f.phase==="break");
 }
 $("fQuit").onclick=()=>{ const f=S.focus; if(!f) return;
@@ -636,29 +649,107 @@ $("fSound").onchange=e=>{ S.settings.sound=e.target.value; startSound(S.settings
 $("fVol").oninput=e=>{ S.settings.vol=+e.target.value; setVol(S.settings.vol); };
 $("fVol").onchange=()=>save();
 
-/* ---------- ortam sesleri (tarayıcıda üretilir) ---------- */
+/* ---------- ortam sesleri (tamamen tarayıcıda üretilir, dosya yok) ---------- */
+const SOUNDS=[["off","Sessiz"],["rain","Yağmur"],["storm","Fırtına"],["ocean","Okyanus"],["fire","Şömine"],["night","Orman gecesi"],["cafe","Kafe"],["library","Kütüphane"],["lofi","Lo-fi müzik"],["brown","Derin uğultu"]];
 let AC=null, SND=null;
-function noiseBuf(kind){ const n=AC.sampleRate*3, b=AC.createBuffer(1,n,AC.sampleRate), d=b.getChannelData(0); let last=0;
-  for(let i=0;i<n;i++){ const w=Math.random()*2-1; if(kind==="white") d[i]=w*0.5; else { last=(last+0.02*w)/1.02; d[i]=last*3.5; } } return b; }
+const NB={};
+function noise(ctx,kind){ // 4 sn stereo gürültü tamponu: white / pink / brown
+  const key=kind+ctx.sampleRate; if(NB[key]&&NB[key].ctx===ctx) return NB[key].b;
+  const n=ctx.sampleRate*4, b=ctx.createBuffer(2,n,ctx.sampleRate);
+  for(let ch=0;ch<2;ch++){ const d=b.getChannelData(ch); let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0,last=0;
+    for(let i=0;i<n;i++){ const w=Math.random()*2-1;
+      if(kind==="white") d[i]=w*0.3;
+      else if(kind==="pink"){ b0=0.99886*b0+w*0.0555179; b1=0.99332*b1+w*0.0750759; b2=0.969*b2+w*0.153852; b3=0.8665*b3+w*0.3104856; b4=0.55*b4+w*0.5329522; b5=-0.7616*b5-w*0.016898; d[i]=(b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.11; b6=w*0.115926; }
+      else { last=(last+0.02*w)/1.02; d[i]=last*3.5; } }
+    // döngü dikişini yumuşat
+    const f=Math.floor(ctx.sampleRate*0.05); for(let i=0;i<f;i++){ const k=i/f; d[i]=d[i]*k+d[n-f+i]*(1-k); } }
+  NB[key]={ctx,b}; return b;
+}
+function bed(ctx,out,kind,{lp=20000,hp=20,gain=1,q=0.7,lfo=0,lfoDepth=0}={}){
+  const s=ctx.createBufferSource(); s.buffer=noise(ctx,kind); s.loop=true; s.loopStart=0.05; s.loopEnd=s.buffer.duration;
+  const h=ctx.createBiquadFilter(); h.type="highpass"; h.frequency.value=hp;
+  const l=ctx.createBiquadFilter(); l.type="lowpass"; l.frequency.value=lp; l.Q.value=q;
+  const g=ctx.createGain(); g.gain.value=gain;
+  s.connect(h); h.connect(l); l.connect(g); g.connect(out); s.start(ctx.currentTime, Math.random()*3);
+  const nodes=[s];
+  if(lfo){ const o=ctx.createOscillator(), og=ctx.createGain(); o.frequency.value=lfo; og.gain.value=gain*lfoDepth; o.connect(og); og.connect(g.gain); o.start(); nodes.push(o); }
+  return {nodes,g,l};
+}
+function burst(ctx,out,t,{dur=0.02,f=3000,q=1,gain=0.2,type="bandpass",pan=0,src="white"}){
+  const s=ctx.createBufferSource(); s.buffer=noise(ctx,src);
+  const bf=ctx.createBiquadFilter(); bf.type=type; bf.frequency.value=f; bf.Q.value=q;
+  const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(gain,t+Math.min(0.004,dur/4)); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  let node=g; if(ctx.createStereoPanner){ const p=ctx.createStereoPanner(); p.pan.value=pan; g.connect(p); node=p; }
+  s.connect(bf); bf.connect(g); node.connect(out); s.start(t,Math.random()*3); s.stop(t+dur+0.05);
+}
+function tone(ctx,out,t,{f=440,dur=1,gain=0.1,type="sine",attack=0.02,lp=0,pan=0,detune=0}){
+  const o=ctx.createOscillator(); o.type=type; o.frequency.value=f; o.detune.value=detune;
+  const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(gain,t+attack); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  let last=g; o.connect(g);
+  if(lp){ const f2=ctx.createBiquadFilter(); f2.type="lowpass"; f2.frequency.value=lp; g.connect(f2); last=f2; }
+  if(ctx.createStereoPanner){ const p=ctx.createStereoPanner(); p.pan.value=pan; last.connect(p); last=p; }
+  last.connect(out); o.start(t); o.stop(t+dur+0.05);
+}
+const rnd2=(a,b)=>a+Math.random()*(b-a);
+const LEVEL={"storm": 0.6, "ocean": 0.7, "night": 2.0, "cafe": 1.4, "lofi": 5.5, "brown": 0.6, "rain": 0.9, "fire": 0.85, "library": 1.1};
+/* her ses: sürekli katmanlar + zamanlanmış olaylar (events: ileriye dönük planlanır) */
+const SCAPES={
+  rain:{ beds:c=>[["pink",{hp:300,lp:7000,gain:0.55}],["brown",{lp:400,gain:0.35}]],
+    ev:(ctx,out,t,span)=>{ for(let x=t;x<t+span;x+=rnd2(0.02,0.09)) burst(ctx,out,x,{dur:rnd2(0.008,0.03),f:rnd2(2500,7000),q:rnd2(2,6),gain:rnd2(0.02,0.08),pan:rnd2(-0.9,0.9)}); } },
+  storm:{ beds:c=>[["pink",{hp:200,lp:5000,gain:0.7}],["brown",{lp:300,gain:0.5,lfo:0.07,lfoDepth:0.6}]],
+    ev:(ctx,out,t,span)=>{ for(let x=t;x<t+span;x+=rnd2(0.015,0.06)) burst(ctx,out,x,{dur:rnd2(0.008,0.03),f:rnd2(2000,6000),q:3,gain:rnd2(0.03,0.09),pan:rnd2(-1,1)});
+      if(Math.random()<span/14){ const x=t+rnd2(0,span); burst(ctx,out,x,{dur:rnd2(3,6),f:rnd2(60,120),q:0.6,gain:0.9,type:"lowpass",src:"brown"}); burst(ctx,out,x+0.05,{dur:1.2,f:800,q:0.5,gain:0.25,type:"lowpass",src:"brown"}); } } },
+  ocean:{ beds:c=>[["pink",{hp:100,lp:2500,gain:0.6,lfo:1/9,lfoDepth:0.85}],["brown",{lp:350,gain:0.4,lfo:1/9,lfoDepth:0.5}]], ev:null },
+  fire:{ beds:c=>[["brown",{lp:600,gain:0.6,lfo:0.3,lfoDepth:0.15}],["pink",{hp:1500,lp:5000,gain:0.05}]],
+    ev:(ctx,out,t,span)=>{ let x=t; while(x<t+span){ x+=rnd2(0.05,0.5); const n=Math.random()<0.3?Math.floor(rnd2(2,6)):1;
+      for(let i=0;i<n;i++) burst(ctx,out,x+i*rnd2(0.01,0.04),{dur:rnd2(0.002,0.012),f:rnd2(1500,6000),q:rnd2(1,4),gain:rnd2(0.06,0.3),pan:rnd2(-0.5,0.5)});
+      if(Math.random()<0.04) burst(ctx,out,x,{dur:0.05,f:rnd2(400,900),q:2,gain:0.35,pan:rnd2(-0.4,0.4)}); } } },
+  night:{ beds:c=>[["pink",{hp:150,lp:1200,gain:0.25,lfo:0.05,lfoDepth:0.5}]],
+    ev:(ctx,out,t,span)=>{ [[4600,-0.6],[4950,0.5],[4300,0.1]].forEach(([f,pan])=>{ let x=t+rnd2(0,0.6); while(x<t+span){ for(let k=0;k<3;k++) tone(ctx,out,x+k*0.045,{f:f+rnd2(-30,30),dur:0.03,gain:0.025,attack:0.004,pan}); x+=rnd2(0.7,1.6); } });
+      if(Math.random()<span/20){ const x=t+rnd2(0,span); tone(ctx,out,x,{f:420,dur:0.35,gain:0.04,type:"sine",attack:0.05,pan:rnd2(-0.7,0.7)}); tone(ctx,out,x+0.5,{f:380,dur:0.5,gain:0.035,attack:0.05,pan:rnd2(-0.7,0.7)}); } } },
+  cafe:{ beds:c=>[["pink",{hp:250,lp:1800,gain:0.35,lfo:0.4,lfoDepth:0.25}],["brown",{lp:300,gain:0.25}]],
+    ev:(ctx,out,t,span)=>{ let x=t; while(x<t+span){ x+=rnd2(0.15,0.6); burst(ctx,out,x,{dur:rnd2(0.15,0.4),f:rnd2(350,1100),q:rnd2(3,7),gain:rnd2(0.02,0.06),pan:rnd2(-0.8,0.8),src:"pink"}); }
+      if(Math.random()<span/6){ const x=t+rnd2(0,span), f=rnd2(2200,3600); tone(ctx,out,x,{f,dur:0.6,gain:0.03,attack:0.002,pan:rnd2(-0.8,0.8)}); tone(ctx,out,x,{f:f*2.76,dur:0.3,gain:0.012,attack:0.002}); } } },
+  library:{ beds:c=>[["brown",{lp:220,gain:0.45}],["pink",{hp:200,lp:900,gain:0.06}]],
+    ev:(ctx,out,t,span)=>{ if(Math.random()<span/18){ const x=t+rnd2(0,span); burst(ctx,out,x,{dur:0.45,f:2500,q:0.6,gain:0.05,type:"bandpass",pan:rnd2(-0.6,0.6),src:"pink"}); }
+      if(Math.random()<span/9){ const x=t+rnd2(0,span); for(let i=0;i<6;i++) burst(ctx,out,x+i*0.09,{dur:0.05,f:4000,q:1.5,gain:0.012,pan:0.3}); } } },
+  brown:{ beds:c=>[["brown",{lp:500,gain:0.8}]], ev:null },
+  lofi:{ beds:c=>[["pink",{hp:3000,lp:9000,gain:0.03}]],
+    ev:(ctx,out,t,span,st)=>{ // 72 BPM, Am7 - Dm9 - G7 - Cmaj7 döngüsü, yumuşak elektrik piyano + bas + vinil cızırtısı
+      const beat=60/72, bar=beat*4, CH=[[57,60,64,67],[50,57,60,64],[55,59,62,65],[48,55,59,64]], BASS=[45,38,43,36];
+      const mf=m=>440*Math.pow(2,(m-69)/12);
+      if(st.next==null) st.next=t, st.i=0;
+      while(st.next<t+span){ const x=st.next, ci=st.i%4, ch=CH[ci];
+        ch.forEach((m,k)=>{ tone(ctx,out,x+k*0.025,{f:mf(m+12),dur:bar*0.95,gain:0.035,type:"triangle",attack:0.03,lp:1800,pan:(k-1.5)*0.25,detune:rnd2(-6,6)}); tone(ctx,out,x+k*0.025,{f:mf(m+24),dur:bar*0.4,gain:0.008,attack:0.01,lp:2500}); });
+        tone(ctx,out,x,{f:mf(BASS[ci]),dur:beat*1.8,gain:0.09,attack:0.01,lp:400}); tone(ctx,out,x+beat*2.5,{f:mf(BASS[ci]+7),dur:beat*1.2,gain:0.06,attack:0.01,lp:400});
+        for(let b=0;b<4;b++){ const bx=x+b*beat; if(b%2===0) tone(ctx,out,bx,{f:60,dur:0.25,gain:0.12,attack:0.003,lp:200}); else burst(ctx,out,bx,{dur:0.12,f:1800,q:0.8,gain:0.05,src:"pink"});
+          burst(ctx,out,bx+beat/2+0.02,{dur:0.03,f:8000,q:1,gain:0.015,type:"highpass"}); }
+        if(Math.random()<0.5){ const mel=ch[Math.floor(Math.random()*4)]+24; tone(ctx,out,x+beat*rnd2(1,3),{f:mf(mel),dur:beat*1.5,gain:0.018,attack:0.02,lp:2200,pan:0.3}); }
+        st.next+=bar; st.i++; }
+      for(let x=t;x<t+span;x+=rnd2(0.1,0.7)) burst(ctx,out,x,{dur:0.004,f:rnd2(1500,4000),q:1,gain:rnd2(0.01,0.04)}); } },
+};
+function buildScape(ctx,kind,vol){
+  const sc=SCAPES[kind]; if(!sc) return null; vol*=LEVEL[kind]||1;
+  const master=ctx.createGain(); master.gain.value=0; master.connect(ctx.destination); master.lvl=LEVEL[kind]||1;
+  master.gain.setValueAtTime(0,ctx.currentTime); master.gain.linearRampToValueAtTime(vol,ctx.currentTime+1.5);
+  const comp=ctx.createDynamicsCompressor(); comp.threshold.value=-18; comp.ratio.value=3; comp.connect(master);
+  const nodes=[]; sc.beds().forEach(([k,o])=>{ const b=bed(ctx,comp,k,o); nodes.push(...b.nodes); });
+  const st={}; const plan=(span)=>{ if(sc.ev) sc.ev(ctx,comp,Math.max(ctx.currentTime,st.until||ctx.currentTime),span,st); st.until=(st.until||ctx.currentTime)+span; };
+  return {master,nodes,st,plan,sc};
+}
 function startSound(kind,vol){
   stopSound(); if(!kind||kind==="off") return;
-  try{ AC=AC||new (window.AudioContext||window.webkitAudioContext)(); AC.resume&&AC.resume(); }catch(e){ return; }
-  const g=AC.createGain(); g.gain.value=vol*0.6; g.connect(AC.destination);
-  const src=AC.createBufferSource(); src.buffer=noiseBuf(kind==="rain"?"white":"brown"); src.loop=true;
-  const f=AC.createBiquadFilter();
-  if(kind==="rain"){ f.type="bandpass"; f.frequency.value=1400; f.Q.value=0.4; }
-  else if(kind==="library"){ f.type="lowpass"; f.frequency.value=380; }
-  else { f.type="lowpass"; f.frequency.value=700; }
-  src.connect(f); f.connect(g); src.start();
-  const extra=[]; let iv=null;
-  if(kind==="fire"||kind==="rain"){ iv=setInterval(()=>{ if(!AC) return; const cnt=kind==="fire"?(Math.random()<0.5?1:0):3;
-    for(let i=0;i<cnt;i++){ const o=AC.createBufferSource(); o.buffer=noiseBuf("white"); const eg=AC.createGain(), t0=AC.currentTime+Math.random()*0.25;
-      eg.gain.setValueAtTime(0,t0); eg.gain.linearRampToValueAtTime((kind==="fire"?0.5:0.12)*vol,t0+0.005); eg.gain.exponentialRampToValueAtTime(0.0001,t0+(kind==="fire"?0.06:0.03));
-      const hf=AC.createBiquadFilter(); hf.type="highpass"; hf.frequency.value=kind==="fire"?1800:3000; o.connect(hf); hf.connect(eg); eg.connect(AC.destination); o.start(t0); o.stop(t0+0.1); } },kind==="fire"?180:90); }
-  SND={src,g,iv,extra};
+  try{ AC=AC||new (window.AudioContext||window.webkitAudioContext)(); if(AC.state!=="running") AC.resume(); }catch(e){ return; }
+  const s=buildScape(AC,kind,vol*0.9); if(!s) return;
+  s.st.until=AC.currentTime; s.plan(2);
+  const iv=setInterval(()=>{ if(!AC) return; if((s.st.until||0)-AC.currentTime<1.5) s.plan(2); },500);
+  SND={...s,iv,kind};
 }
-function setVol(v){ if(SND) SND.g.gain.value=v*0.6; }
-function stopSound(){ if(SND){ try{SND.src.stop()}catch(e){} clearInterval(SND.iv); SND=null; } }
+function setVol(v){ if(SND&&AC){ SND.master.gain.cancelScheduledValues(AC.currentTime); SND.master.gain.setTargetAtTime(v*0.9*(SND.master.lvl||1),AC.currentTime,0.1); } }
+function stopSound(){ if(SND){ const s=SND; SND=null; clearInterval(s.iv);
+  try{ s.master.gain.cancelScheduledValues(AC.currentTime); s.master.gain.setTargetAtTime(0,AC.currentTime,0.15); }catch(e){}
+  setTimeout(()=>{ s.nodes.forEach(n=>{ try{n.stop()}catch(e){} }); try{s.master.disconnect()}catch(e){} },700); } }
+const soundOptions=sel=>SOUNDS.map(([v,l])=>`<option value="${v}"${sel===v?" selected":""}>${l}</option>`).join("");
 
 /* ---------- bildirimler ---------- */
 const notifOK=()=>"Notification" in window&&Notification.permission==="granted";
@@ -920,7 +1011,7 @@ function focusTabView(){
     <div class="pills"><span class="tag" style="margin-right:4px">Süre</span>
       <button class="pill${focusLen()===25?" on":""}" data-len="25">25 dk + 5 mola</button><button class="pill${focusLen()===50?" on":""}" data-len="50">50 dk + 10 mola</button></div>
     <div class="pills"><label class="tag" for="fSound2" style="margin-right:4px">Ortam sesi</label>
-      <select id="fSound2" style="width:auto">${[["off","Sessiz"],["rain","Yağmur"],["library","Kütüphane"],["fire","Şömine"]].map(([v,l])=>`<option value="${v}"${S.settings.sound===v?" selected":""}>${l}</option>`).join("")}</select></div>
+      <select id="fSound2" style="width:auto">${soundOptions(S.settings.sound)}</select><button class="pill" id="fPrev">${SND&&!S.focus?"Durdur":"Dinle"}</button></div>
     <button class="btn" id="fStart">Odak oturumunu başlat</button>
     <div class="explain"><b>Kurallar:</b> Oturum boyunca bu sayfada kal. Sekmeden ya da uygulamadan çıkarsan zombiler kapıyı zorlar; 30 saniye içinde dönmezsen oturum yanar. Biten her 25 dakika +8 Brains, 50 dakika +18 Brains. Görevine bağladığın oturumlar o görevi doğrular ve tam ödül alırsın. Dört oturumdan sonra 15 dakika uzun mola.</div>
     ${datalist()}`);
@@ -992,7 +1083,7 @@ function devAct0(a){
 document.querySelectorAll("[data-dev]").forEach(b=>b.onclick=()=>devAct(b.dataset.dev));
 
 function openSheet(t){ tab=t||"tasks"; sheetOpen=true; render(); $("sheet").scrollTop=0; }
-function closeSheet(){ sheetOpen=false; rev=null; render(); }
+function closeSheet(){ sheetOpen=false; rev=null; if(!S.focus) stopSound(); render(); }
 function renderDock(){
   const d=$("dockBody"); let h="";
   const fbtn=`<button class="btn plum" id="dockFocus" style="flex:0 1 auto">Odak</button><button class="btn plum" id="dockShelter" style="flex:0 1 auto">Menü</button>`;
@@ -1114,7 +1205,8 @@ function bind(){
 function bindFocusTab(){
   const el=$("focusTab");
   el.querySelectorAll("[data-len]").forEach(b=>b.onclick=()=>{ S.settings.len=+b.dataset.len; save(); render(); });
-  const fs=$("fSound2"); if(fs) fs.onchange=()=>{ S.settings.sound=fs.value; save(); };
+  const fs=$("fSound2"); if(fs) fs.onchange=()=>{ S.settings.sound=fs.value; save(); if(SND&&!S.focus) startSound(fs.value,S.settings.vol); };
+  const fp=$("fPrev"); if(fp) fp.onclick=()=>{ if(SND){ stopSound(); fp.textContent="Dinle"; } else if(S.settings.sound!=="off"){ startSound(S.settings.sound,S.settings.vol); fp.textContent="Durdur"; } else toast("Önce bir ses seç"); };
   const ft=$("fTask"); if(ft) ft.onchange=()=>{ focusTask=ft.value; const t=S.raid&&S.raid.tasks.find(x=>x.id===ft.value); if(t&&t.course) $("fCourse").value=t.course; };
   $("fStart").onclick=startFocus;
 }
