@@ -13,7 +13,17 @@
   const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} };
 
-  const sessionP = sb ? sb.auth.getSession().then(r => r.data.session).catch(() => null) : Promise.resolve(null);
+  const sessionP = sb ? sb.auth.getSession().then(async r => {
+    const s = r.data.session; if (!s) return null;
+    try { const { data } = await sb.auth.getUser(); if (data && data.user) s.user = data.user; } catch (e) {}   // tarayıcıdaki eski kopya yerine sunucudaki güncel bilgi
+    return s;
+  }).catch(() => null) : Promise.resolve(null);
+  async function setMeta(obj) {   // kullanıcı bilgisini güncelle ve oturumu tazele, yenilemede eski bilgi geri gelmesin
+    const { data, error } = await sb.auth.updateUser({ data: obj });
+    if (data && data.user && session) session.user = data.user;
+    try { await sb.auth.refreshSession(); } catch (e) {}
+    return { data, error };
+  }
   let session = null;
   sessionP.then(s => { session = s; });
 
@@ -180,7 +190,8 @@
         <button class="btn" id="gOk">Onayla ve devam et</button><button class="link" id="gNo">Onaylamıyorum, çıkış yap</button><div class="msg" id="gMsg" hidden></div>`;
       $b("gOk").onclick = async () => {
         if (!$b("gKvkk").checked) return say("Devam etmek için onay kutusunu işaretlemelisin.", true);
-        const { data } = await sb.auth.updateUser({ data: { kvkk: KVKK_VER, kvkk_at: new Date().toISOString() } });
+        const { data, error } = await setMeta({ kvkk: KVKK_VER, kvkk_at: new Date().toISOString() });
+        if (error) return say("Kaydedilemedi, internet bağlantını kontrol edip tekrar dene.", true);
         if (data && data.user) session.user = data.user;
         g.remove(); if (!(session.user.user_metadata || {}).display_name) gate("name");
       };
@@ -200,11 +211,12 @@
       };
     } else {
       box.innerHTML = `<h2>Hoş geldin</h2><p>Sıralamada görünecek bir takma ad seç. Gerçek adını yazmak zorunda değilsin.</p>
-        <input id="gName" type="text" maxlength="24" value="${nameOf(session.user).replace(/"/g, "")}">
+        <input id="gName" type="text" maxlength="24" placeholder="Örn. ZombiAvcısı" value="${((session.user.user_metadata || {}).display_name || "").replace(/"/g, "")}">
         <button class="btn" id="gSave">Kaydet</button><div class="msg" id="gMsg" hidden></div>`;
       $b("gSave").onclick = async () => {
         const n = $b("gName").value.trim().slice(0, 24); if (n.length < 2) return say("En az 2 karakter yaz.", true);
-        const { data } = await sb.auth.updateUser({ data: { display_name: n } });
+        const { data, error } = await setMeta({ display_name: n });
+        if (error) return say("Kaydedilemedi, tekrar dene.", true);
         if (data && data.user) session.user = data.user;
         const ab = document.querySelector("#acct b"); if (ab) ab.textContent = nameOf(session.user);
         g.remove();
