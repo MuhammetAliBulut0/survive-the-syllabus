@@ -239,7 +239,7 @@
     const a = el(`<p class="acct" id="acct"></p>`);
     if (session) { a.innerHTML = `Giriş: <b></b> · <button id="acctPass">Şifre değiştir</button> · <button id="acctOut">Çıkış yap</button>`; a.querySelector("b").textContent = nameOf(session.user);
       a.querySelector("#acctPass").onclick = () => gate("pass", { over: true });
-      a.querySelector("#acctOut").onclick = async () => { await sb.auth.signOut(); lsSet(GUEST, null); location.reload(); }; }
+      a.querySelector("#acctOut").onclick = async () => { await sb.auth.signOut(); lsSet(GUEST, null); lsSet("sts-last-uid", null); location.reload(); }; }
     else if (sb) { a.innerHTML = `Misafir modundasın. <button id="acctUp">Hesap oluştur</button> · <button id="acctIn">Giriş yap</button>`;
       a.querySelector("#acctUp").onclick = () => gate("signup", { fromGuest: true, over: true }); a.querySelector("#acctIn").onclick = () => gate("login", { fromGuest: true, over: true }); }
     else { a.textContent = "Kurulum tamamlanmadı: config.js içindeki Supabase bilgilerini doldur."; }

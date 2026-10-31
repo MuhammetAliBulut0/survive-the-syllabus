@@ -448,7 +448,7 @@ let sheetOpen = false, tab = "tasks", profSub = "me";
 let docRef=null, writing=false, pending=false, DB=null, UID=null, USER=null, boardT=null;
 /* Yerel yedek her hesaba ayrı tutulur; misafir ilerlemesi ayrı anahtarda */
 const LS_GUEST="sts-state-v1";
-let LS=LS_GUEST, lastSent="", synced=false;
+let LS=LS_GUEST, lastSent="", synced=false, storeReady=false;
 const lsGet=(k=LS)=>{try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}};
 const lsSet=v=>{try{localStorage.setItem(LS,JSON.stringify(v))}catch(e){}};
 const lsDel=k=>{try{localStorage.removeItem(k)}catch(e){}};
@@ -494,14 +494,15 @@ function askGuestMerge(g,r){ return new Promise(res=>{ const ov=$("cov"); mergeO
   ov.hidden=false; const done=v=>{ mergeOpen=false; ov.hidden=true; ov.innerHTML=""; res(v); };
   $("mgAcc").onclick=()=>done("account"); $("mgGuest").onclick=()=>done("guest"); }); }
 async function initStore(){
-  const l=lsGet(LS_GUEST); if(l&&l.v===1) S=Object.assign(fresh(),l); migrate();
+  let lastUid=null; try{ lastUid=localStorage.getItem("sts-last-uid"); }catch(e){}
+  const l=(lastUid&&lsGet("sts-state-v1:"+lastUid))||lsGet(LS_GUEST); if(l&&l.v===1) S=Object.assign(fresh(),l); migrate();   // ilk an için son hesabın yerel kopyası
   if(!window.claude) devOK=true; // yerel önizleme
   render();
   try{
     const user=await claude.use("user"), db=await claude.use("db"), uid=user?await user.id():null; DB=db; UID=uid; USER=user;
     try{ devOK=!!(user&&await Promise.resolve(user.isOwner())); }catch(e){}
     if(db&&uid){
-      LS="sts-state-v1:"+uid; docRef=db.doc("data/users/"+uid+"/game");
+      LS="sts-state-v1:"+uid; docRef=db.doc("data/users/"+uid+"/game"); try{ localStorage.setItem("sts-last-uid",uid); }catch(e){}
       const s=await docRef.get(), remote=s.exists?s.data():null, local=lsGet(LS);
       const g=lsGet(LS_GUEST), gHas=g&&g.v===1&&!g.uid&&((g.survived||0)+((g.tot&&g.tot.focus)||0)+((g.deck||[]).length)+(g.brains||0))>0;
       let same=false;
@@ -514,8 +515,10 @@ async function initStore(){
       if(!remote||snap()!==lastSent) await save();
       if(!remote) lsDel(LS_GUEST);
       $("saveLbl").textContent="İlerlemen hesabına kaydediliyor."; }
-    else $("saveLbl").textContent="İlerlemen bu tarayıcıda tutuluyor.";
+    else { if(lastUid){ const g=lsGet(LS_GUEST); S=Object.assign(fresh(),(g&&g.v===1)?g:{}); migrate(); }   // çıkış yapılmış: misafir durumuna dön
+      $("saveLbl").textContent="İlerlemen bu tarayıcıda tutuluyor."; }
   }catch(e){ $("saveLbl").textContent="İlerlemen bu tarayıcıda tutuluyor."; }
+  storeReady=true;
   if(S.focus&&S.focus.phase==="focus"&&S.focus.hiddenAt&&now()-S.focus.hiddenAt>30e3) burnFocus("Sayfadan 30 saniyeden uzun ayrıldın. Oturum yandı.");
   applyDecay(); resolvePledge(); checkQuests(); checkBadges(); tick(); render(); save();
 }
@@ -1110,7 +1113,7 @@ function render(){
     if(tab==="shelter"){ $("shopBox").innerHTML=shopBox(); $("shopBox").querySelectorAll("[data-shop]").forEach(b=>b.onclick=()=>shopAct(b.dataset.shop)); }
   }
   renderCov(); renderFocusOv();
-  const needPick=!S.hero&&S.status!=="dead"; $("picker").hidden=!needPick; if(needPick) renderPicker();
+  const needPick=storeReady&&!S.hero&&S.status!=="dead"; $("picker").hidden=!needPick; if(needPick) renderPicker();
   renderShelter(); renderDock();
   const m=$("main");
   if(S.status==="dead") m.innerHTML=frame(`<div class="tag sick">Sığınak düştü</div><h2>Önce yeni bir hayatta kalanla başla.</h2><button class="btn red" id="respawn2">Yeni hayatta kalanla başla</button>`);
