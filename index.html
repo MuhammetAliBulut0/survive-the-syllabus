@@ -8,6 +8,13 @@
 <meta property="og:description" content="Ders çalışmanı zombi baskınına çeviren oyun. Görevlerini bitir, sürüden sağ çık.">
 <meta name="theme-color" content="#150d1f">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23150d1f'/%3E%3Ccircle cx='16' cy='15' r='9' fill='%23c3f53c'/%3E%3Ccircle cx='12.5' cy='14' r='2' fill='%23ff4d6d'/%3E%3Ccircle cx='19.5' cy='14' r='2' fill='%23ff4d6d'/%3E%3Crect x='11' y='20' width='10' height='2' fill='%23150d1f'/%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Syllabus">
+<script>if("serviceWorker" in navigator&&location.protocol==="https:")addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));</script>
 <style>:root{color-scheme:dark;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html,body{margin:0}body{font:14px/1.5 system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -251,7 +258,7 @@ textarea{min-height:90px;resize:vertical}
 .big{font-family:var(--f-logo);font-size:38px;line-height:1.05;color:var(--safe)}
 .deadc .big{color:var(--blood)}
 .stats{font-family:var(--f-mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
-.toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 14px);max-width:calc(100% - 32px);background:var(--toxic);color:#1a0d26;padding:10px 16px;font-weight:700;font-size:14px;z-index:30;
+.toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 14px);width:max-content;max-width:calc(100% - 32px);pointer-events:none;text-align:center;background:var(--toxic);color:#1a0d26;padding:10px 16px;font-weight:700;font-size:14px;z-index:30;
   clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)}
 .foot{font-size:12px;color:var(--muted);text-align:center}
 /* görev satırı (iki satır) */
@@ -316,6 +323,15 @@ textarea{min-height:90px;resize:vertical}
 .fBtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .fb{background:transparent;border:1px solid #3a2e4e;color:#c9bedb;padding:10px 18px;font-size:14px}
 .fb.main{background:#8a6fb8;border-color:#8a6fb8;color:#120a1c;font-weight:700}
+.xov{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:16px;background:color-mix(in oklab,#0c0614 82%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);overflow-y:auto}
+.xov .panel{width:min(420px,100%);border:1px solid var(--line)}
+.xov img{display:block;width:100%;max-height:62vh;object-fit:contain;border:1px solid var(--line);background:#0c0614}
+.xov h2{margin:0;font-family:var(--f-head);font-size:20px;line-height:1.15}
+.xov .stepN{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+.xov .dots{display:flex;gap:6px}.xov .dots i{width:22px;height:4px;background:var(--line)}.xov .dots i.on{background:var(--toxic)}
+.xov .big2{font-size:34px;line-height:1}
+@media (max-width:520px){.tabs{display:grid;grid-template-columns:repeat(3,1fr);overflow:visible;flex:1}.tabs button{padding:9px 4px}.sheetHead{align-items:flex-start}}
+@media (max-width:480px){.dock .row2 .btn{flex:1 1 0!important}.dock .row2 .btn:first-child{flex-basis:100%!important}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 
@@ -950,7 +966,7 @@ function examsBox(){
   return frame(`<div class="tag">Sınav takvimi</div>
     ${up.length?`<ul class="deck">${up.map(e=>`<li><div><b>${esc(e.course)} · ${esc(e.type)}</b><small>${new Date(e.date).toLocaleDateString("tr-TR",{day:"numeric",month:"long",weekday:"long"})} · ${daysTo(e.date)===0?"bugün":daysTo(e.date)+" gün kaldı"}${e.bossWon?" · Boss yenildi":daysTo(e.date)<=7?" · Boss uyanık":""}</small></div><button class="iconbtn" data-delexam="${e.id}" aria-label="Sınavı sil">×</button></li>`).join("")}</ul>`
       :`<p class="note">Sınav tarihlerini ekle. Sınavdan önceki 7 günde o ders için Final Bossu baskını açılır: ödüller iki katı, efsanevi kart şansı yüksek.</p>`}
-    <div class="erow"><input id="eCourse" list="courseList" placeholder="Ders"><select id="eType"><option>Vize</option><option>Final</option><option>Quiz</option><option>Bütünleme</option></select><input id="eDate" type="date"></div>
+    <div class="erow"><input id="eCourse" list="courseList" placeholder="Ders"><select id="eType" aria-label="Sınav türü"><option>Vize</option><option>Final</option><option>Quiz</option><option>Bütünleme</option></select><input id="eDate" type="date" aria-label="Sınav tarihi"></div>
     <button class="btn plum sm" id="eAdd" style="align-self:flex-start">Sınavı ekle</button>${datalist()}`);
 }
 
@@ -1047,7 +1063,7 @@ function reportBox(){
     <div class="report"><div class="rnum"><b>${hm(w.min)}</b><span>odak süresi</span></div><div class="rnum"><b>${w.sessions}</b><span>oturum</span></div><div class="rnum"><b>${w.reviews}</b><span>kart tekrarı</span></div></div>
     <div class="bars">${w.days.map((m,i)=>`<div class="bar"><i style="height:${Math.round(m/mx*100)}%"></i><span>${TRDAYS[i]}</span><small>${m||""}</small></div>`).join("")}</div>
     <p class="note">${w.best?`En verimli günün: ${w.best}.`:"Bu hafta henüz odak oturumu yok."}</p>
-    <button class="btn sm" id="repCopy" style="align-self:flex-start">Metni kopyala</button>`,"card");
+    <div class="btns" style="justify-content:flex-start"><button class="btn sm" id="repStory">Story görseli</button><button class="btn sm plum" id="repCopy">Metni kopyala</button></div>`,"card");
 }
 function courseBox(){
   const wk=weekKey(), cs=courseList(); if(!cs.length) return frame(`<div class="tag">Ders istatistikleri</div><p class="note">Görevlere ve odak oturumlarına ders yazdıkça burada hangi derse ne kadar çalıştığını göreceksin.</p>`);
@@ -1068,7 +1084,18 @@ function settingsBox(){
   return frame(`<div class="tag">Ayarlar</div>
     ${nOK&&perm!=="denied"?`<button class="btn sm plum" id="notifBtn" style="align-self:flex-start"${perm==="granted"?" disabled":""}>${perm==="granted"?"Bildirimler açık":"Tarayıcı bildirimlerini aç"}</button>
       <p class="note">Mola bitince, oturum bitince ve sürü yaklaşınca haber verir.</p>`:`<p class="note">Bu görünümde tarayıcı bildirimleri kullanılamıyor.</p>`}
+    ${installBox()}
+    <button class="link" id="howBtn" style="align-self:flex-start">Nasıl oynanır?</button>
     ${accountBox()}`);
+}
+let installEv=null; addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); installEv=e; if(sheetOpen&&tab==="profile") render(); });
+addEventListener("appinstalled",()=>{ installEv=null; toast("Uygulama ana ekrana eklendi"); });
+function installBox(){
+  if(!window.STS_SITE||matchMedia("(display-mode: standalone)").matches||navigator.standalone) return "";
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  if(installEv) return `<button class="btn sm plum" id="installBtn" style="align-self:flex-start">Ana ekrana ekle</button><p class="note">Uygulama gibi tam ekran açılır, internet yokken de çalışır.</p>`;
+  if(ios) return `<p class="note">Telefonuna uygulama gibi eklemek için Safari'de Paylaş düğmesine, sonra “Ana Ekrana Ekle”ye dokun.</p>`;
+  return "";
 }
 const isGuest=()=>!!(window.STS_isGuest&&window.STS_isGuest());
 function accountBox(){
@@ -1091,6 +1118,8 @@ function renderProfile(){
   el.querySelectorAll("[data-delexam]").forEach(b=>b.onclick=()=>{ S.exams=S.exams.filter(e=>e.id!==b.dataset.delexam); save(); render(); });
   on("repCopy",async()=>{ const w=weekStats(); const txt=`Survive the Syllabus 🧟 Bu hafta ${hm(w.min)} odaklandım, ${w.sessions} oturum, ${w.reviews} kart tekrarı. ${streak()} günlük serim var.${w.best?` En verimli günüm ${w.best}.`:""}`;
     try{await navigator.clipboard.writeText(txt);toast("Kopyalandı")}catch(e){toast("Kopyalanamadı, ekran görüntüsü al")} });
+  on("repStory",()=>shareStory("week"));
+  on("installBtn",async()=>{ if(!installEv) return; installEv.prompt(); try{ await installEv.userChoice; }catch(e){} installEv=null; render(); }); on("howBtn",()=>showIntro(0));
   on("notifBtn",askNotif); bindAccount(el);
 }
 
@@ -1145,7 +1174,7 @@ function renderPicker(){
   $("picker").querySelectorAll(".sw").forEach(b=>b.onclick=()=>{pick[b.dataset.k]=+b.dataset.i;renderPicker()});
 }
 $("pgF").onclick=()=>{pick.g="f";renderPicker()}; $("pgM").onclick=()=>{pick.g="m";renderPicker()};
-$("pickGo").onclick=()=>{ S.hero=Object.assign({},pick,{base:pick.outfit,acc:S.shop.eq.acc||null}); save(); render(); toast("Sığınağa hoş geldin."); };
+$("pickGo").onclick=()=>{ S.hero=Object.assign({},pick,{base:pick.outfit,acc:S.shop.eq.acc||null}); save(); render(); if(!S.introSeen&&!S.survived&&!(S.focusLog||[]).length) showIntro(0); else toast("Sığınağa hoş geldin."); };
 
 let devOK=false;
 function devAct(a){ deving=true; try{ devAct0(a); } finally { deving=false; } }
@@ -1200,6 +1229,7 @@ function renderDock(){
   on("respawn",respawn);
   on("dismissWin",()=>{S.lastWin=null;save();render()});
   on("winSignup",()=>window.STS_openSignup&&window.STS_openSignup());
+  on("winStory",()=>shareStory("win"));
   on("shareBtn",async()=>{const w=S.lastWin;const txt=`Survive the Syllabus 🧟 Bugün zombi baskınından sağ çıktım: ${w.tasks} görev, sürüye ${fmt(w.left)} kala. ${streak()} günlük serim var.`;
     try{await navigator.clipboard.writeText(txt);toast("Kopyalandı, story'ye yapıştır")}catch(e){toast("Kopyalanamadı, kartın ekran görüntüsünü al")}});
 }
@@ -1254,7 +1284,7 @@ function winView(){
   if(w.kind==="cured") return frame(`<div class="tag">Tedavi tamam</div><div class="big">Kıl payı kurtuldun</div><div class="stats">${w.tasks} görev · +5 Brains</div><button class="link" id="dismissWin" style="align-self:flex-start">Kapat</button>`,"card");
   return frame(`<div class="tag">${w.boss?"Final Bossu yenildi":"Survive the Syllabus"}</div><div class="big">${w.boss?"Bossu devirdin":"Bugün hayatta kaldım"}</div>
     <div class="stats">${w.tasks} görev bitti · sürüye ${fmt(w.left)} kala · ${w.streak||streak()} günlük seri · ${S.brains} Brains</div>
-    <div class="btns" style="justify-content:flex-start"><button class="btn sm" id="shareBtn">Metni kopyala</button><button class="link" id="dismissWin">Kapat</button></div>${isGuest()?`<div class="explain" style="margin-top:4px">Misafirsin: bu ilerleme sadece bu tarayıcıda. <button class="link" id="winSignup" style="padding:0">Hesap oluştur</button>, hepsi hesabına taşınsın.</div>`:""}`,"card");
+    <div class="btns" style="justify-content:flex-start"><button class="btn sm" id="winStory">Story görseli</button><button class="btn sm plum" id="shareBtn">Metni kopyala</button><button class="link" id="dismissWin">Kapat</button></div>${isGuest()?`<div class="explain" style="margin-top:4px">Misafirsin: bu ilerleme sadece bu tarayıcıda. <button class="link" id="winSignup" style="padding:0">Hesap oluştur</button>, hepsi hesabına taşınsın.</div>`:""}`,"card");
 }
 function deathView(){
   return frame(`<div class="tag sick">Hayatta kalan #${S.survivor}</div><div class="big">Sürü seni yakaladı</div>
@@ -1657,8 +1687,11 @@ function drawFocus(cv,t){
 function drawPrev(t){ const cv=$("heroPrev"), c=cv.getContext("2d"), dpr=Math.min(2,devicePixelRatio||1), W=cv.clientWidth, H=cv.clientHeight; if(!W) return;
   if(cv.width!==Math.round(W*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)} c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,W,H);
   hero(c,W/2,H-22,4.4,pick,"cheer",t); }
-function loop(t){ if(!$("focusOv").hidden) drawFocus($("focusScene"),t); else drawScene($("scene"),t,false); if(!$("picker").hidden) drawPrev(t);
-  if(!$("mini").hidden) drawScene($("miniScene"),t,true); requestAnimationFrame(loop); }
+// Pil dostu: sahne 30 fps, panel açıkken (sahne bulanık arkada) 8 fps
+let lastFrame=0;
+function loop(t){ requestAnimationFrame(loop); const gap=(sheetOpen&&$("focusOv").hidden&&$("picker").hidden)?125:33; if(t-lastFrame<gap-4) return; lastFrame=t;
+  if(!$("focusOv").hidden) drawFocus($("focusScene"),t); else drawScene($("scene"),t,false); if(!$("picker").hidden) drawPrev(t);
+  if(!$("mini").hidden) drawScene($("miniScene"),t,true); }
 requestAnimationFrame(loop);
 
 /* ---------- zombi kartları ---------- */
@@ -1832,6 +1865,84 @@ function renderBoard(){
     <button class="link" id="bmR" style="align-self:flex-start">Yenile</button>`);
   $("bmW").onclick=()=>{boardMode="week";renderBoard()}; $("bmA").onclick=()=>{boardMode="all";renderBoard()}; $("bmR").onclick=()=>{boardData=null;renderBoard()};
 }
+
+/* ---------- ilk kullanım rehberi ---------- */
+const INTRO=[
+  ["Görevini yaz, süreni seç","“Baskını başlat”a bas, bugün ne çalışacağını yaz (15 soru, 30 dakika, 10 sayfa…) ve ne kadar vaktin olduğunu seç. Süre başlayınca sürü ormandan yürümeye başlar."],
+  ["Odakta çalış, görevleri bitir","Odak ekranında sayaç ve sakin arka plan sesleri var. Her bitirdiğin görev sürüyü geri iter ve Brains kazandırır. Hafıza kartı tekrarları da sayılır."],
+  ["Süre biterse ısırılırsın","Bitiremezsen enfekte olursun ve kısa bir tedavi süren başlar. Onu da kaçırırsan karakterin ölür: Brains ve sığınak geliştirmeleri sürüye gider."],
+  ["Brains'ini harca","Menü › Sığınak'tan barikatı, tareti ve sığınağı güçlendir, kozmetik al. Baskın kazandıkça zombi kartı toplarsın; bazılarının gücü var."]];
+function showIntro(i){
+  let ov=$("introOv"); if(!ov){ ov=document.createElement("div"); ov.id="introOv"; ov.className="xov"; ov.setAttribute("role","dialog"); ov.setAttribute("aria-modal","true"); document.body.appendChild(ov); }
+  const [h,p]=INTRO[i], last=i===INTRO.length-1;
+  ov.innerHTML=`<div class="panel"><div class="stepN">Nasıl oynanır · ${i+1}/${INTRO.length}</div><h2>${h}</h2><p style="margin:0">${p}</p>
+    <div class="dots">${INTRO.map((_,j)=>`<i class="${j<=i?"on":""}"></i>`).join("")}</div>
+    <div class="btns">${last?"":`<button class="link" id="introSkip">Geç</button>`}${i?`<button class="btn sm plum" id="introBack">Geri</button>`:""}<button class="btn sm" id="introNext">${last?"Başlayalım":"İleri"}</button></div></div>`;
+  ov.hidden=false;
+  const end=()=>{ ov.hidden=true; if(!S.introSeen){ S.introSeen=true; save(); } };
+  $("introNext").onclick=()=>last?end():showIntro(i+1);
+  if($("introBack")) $("introBack").onclick=()=>showIntro(i-1);
+  if($("introSkip")) $("introSkip").onclick=end;
+  $("introNext").focus();
+}
+
+/* ---------- paylaşılabilir story görseli ---------- */
+async function storyCanvas(kind){
+  try{ await Promise.race([Promise.all(['92px "Rubik Wet Paint"','64px "Bungee"','700 40px "Rubik"','500 30px "IBM Plex Mono"'].map(f=>document.fonts.load(f))),new Promise(r=>setTimeout(r,1500))]); }catch(e){}
+  const W=1080,H=1920,cv=document.createElement("canvas"); cv.width=W; cv.height=H; const c=cv.getContext("2d");
+  const g=c.createLinearGradient(0,0,0,H); g.addColorStop(0,"#2a1442"); g.addColorStop(.55,"#160b24"); g.addColorStop(1,"#0c0614"); c.fillStyle=g; c.fillRect(0,0,W,H);
+  const mg=c.createRadialGradient(820,560,10,820,560,260); mg.addColorStop(0,"rgba(230,245,176,.35)"); mg.addColorStop(1,"rgba(230,245,176,0)"); c.fillStyle=mg; c.fillRect(500,250,640,640);
+  c.fillStyle="#e6f5b0"; c.beginPath(); c.arc(820,560,90,0,7); c.fill();
+  let sd=7; const rnd=()=>(sd=(sd*9301+49297)%233280)/233280; const G=1200;
+  c.fillStyle="#1f1231"; for(let x=-20;x<W;){ const w=70+rnd()*110,h=180+rnd()*360; c.fillRect(x,G-h,w,h); x+=w+8; }
+  c.fillStyle="#2c1a42"; for(let i=0;i<70;i++){ c.fillRect(rnd()*W,G-40-rnd()*480,8,12); }
+  c.fillStyle="#0e0818"; c.fillRect(0,G,W,H-G);
+  const win=kind==="win", lw=S.lastWin||{};
+  [[140,0,1.9],[930,1,1.7],[1010,2,2.1]].forEach(([x,tp,sc],i)=>zombie(c,x,G,sc*2.2,i*1.3,tp,false,x<540?-1:1));
+  if(S.hero) hero(c,W/2,G,13,S.hero,"cheer",0);
+  c.textAlign="center"; c.textBaseline="alphabetic";
+  c.fillStyle="#c3f53c"; c.shadowColor="rgba(195,245,60,.5)"; c.shadowBlur=30; c.font='92px "Rubik Wet Paint", Impact, sans-serif'; c.fillText("Survive the Syllabus",W/2,190); c.shadowBlur=0;
+  c.fillStyle="#a898bd"; c.font='500 30px "IBM Plex Mono", monospace'; c.fillText(`HAYATTA KALAN #${S.survivor} · ${streak()} GÜN SERİ`.toLocaleUpperCase("tr"),W/2,262);
+  c.fillStyle="#f1eaf7"; c.font='64px "Bungee", "Arial Black", sans-serif';
+  c.fillText(win?(lw.boss?"BOSSU DEVİRDİM":"BUGÜN HAYATTA KALDIM"):"BU HAFTA AYAKTAYIM",W/2,390);
+  const w=weekStats();
+  const cells=win?[[String(lw.tasks||0),"görev bitti"],[fmt(lw.left||0),"sürüye kala"],[String(lw.streak||streak()),"günlük seri"]]
+                 :[[w.min>=60?(w.min/60).toFixed(1).replace(".",",")+" sa":w.min+" dk","odak"],[String(w.sessions),"oturum"],[String(w.reviews),"kart tekrarı"]];
+  cells.forEach(([v,l],i)=>{ const x=W/6+i*W/3;
+    c.fillStyle="#c3f53c"; c.font='72px "Bungee", "Arial Black", sans-serif'; c.fillText(v,x,1390);
+    c.fillStyle="#a898bd"; c.font='700 36px "Rubik", system-ui, sans-serif'; c.fillText(l,x,1450); });
+  if(!win){ const mx=Math.max(30,...w.days), bw=90, x0=(W-7*bw-6*24)/2;
+    w.days.forEach((m,i)=>{ const h=Math.round(m/mx*190), x=x0+i*(bw+24); c.fillStyle="#2c1a42"; c.fillRect(x,1530,bw,190); c.fillStyle="#9b5de5"; c.fillRect(x,1720-h,bw,h);
+      c.fillStyle="#a898bd"; c.font='500 28px "IBM Plex Mono", monospace'; c.fillText(TRDAYS[i],x+bw/2,1765); }); }
+  else { c.fillStyle="#f1eaf7"; c.font='700 40px "Rubik", system-ui, sans-serif'; c.fillText(`${S.brains} Brains · ${S.survived} baskın atlatıldı`,W/2,1600); }
+  c.fillStyle="#a898bd"; c.font='500 30px "IBM Plex Mono", monospace'; c.fillText(window.STS_SITE?location.host:"#SurviveTheSyllabus",W/2,1855);
+  return cv;
+}
+async function shareStory(kind){
+  toast("Görsel hazırlanıyor…");
+  let cv; try{ cv=await storyCanvas(kind); }catch(e){ toast("Görsel oluşturulamadı"); return; }
+  const blob=await new Promise(r=>cv.toBlob(r,"image/png")); if(!blob){ toast("Görsel oluşturulamadı"); return; }
+  const file=new File([blob],"survive-the-syllabus.png",{type:"image/png"}), url=URL.createObjectURL(blob);
+  const canShare=!!(navigator.canShare&&navigator.canShare({files:[file]}));
+  let dl=null; if(window.claude&&!window.STS_SITE){ try{ dl=await claude.use("downloads"); }catch(e){} }   // Claude içinde indirme izni ister
+  const dlBtn=window.STS_SITE||!window.claude?`<a class="btn sm${canShare?" plum":""}" id="stDl" href="${url}" download="survive-the-syllabus.png" style="text-decoration:none">İndir</a>`:dl?`<button class="btn sm${canShare?" plum":""}" id="stDl">İndir</button>`:"";
+  let ov=$("storyOv"); if(!ov){ ov=document.createElement("div"); ov.id="storyOv"; ov.className="xov"; ov.setAttribute("role","dialog"); ov.setAttribute("aria-modal","true"); document.body.appendChild(ov); }
+  ov.innerHTML=`<div class="panel"><div class="stepN">Story görseli</div><img src="${url}" alt="Paylaşım görseli">
+    <p class="note" style="margin:0">Instagram story boyutunda (1080×1920). ${dlBtn?(canShare?"Paylaş'a bas ya da indir.":"İndir, sonra story'ne ekle."):"Görsele uzun basıp (bilgisayarda sağ tıklayıp) kaydedebilirsin."}</p>
+    <div class="btns">${canShare?`<button class="btn sm" id="stShare">Paylaş</button>`:""}${dlBtn}<button class="link" id="stClose">Kapat</button></div></div>`;
+  ov.hidden=false;
+  const close=()=>{ ov.hidden=true; ov.innerHTML=""; URL.revokeObjectURL(url); };
+  $("stClose").onclick=close; ov.onclick=e=>{ if(e.target===ov) close(); };
+  if($("stShare")) $("stShare").onclick=async()=>{ try{ await navigator.share({files:[file],title:"Survive the Syllabus"}); }catch(e){ if(e.name!=="AbortError") toast("Paylaşılamadı, İndir'i dene"); } };
+  const d=$("stDl"); if(d) d.onclick=dl?async()=>{ try{ await dl.save({filename:"survive-the-syllabus.png",data:blob}); toast("Kaydedildi"); }catch(e){ if(e&&e.code!=="declined") toast("Kaydedilemedi, görsele uzun bas"); } }:()=>setTimeout(()=>toast("İndirildi"),300);
+}
+
+// Klavye: Esc açık pencereyi kapatır
+document.addEventListener("keydown",e=>{ if(e.key!=="Escape"||e.isComposing) return;
+  const so=$("storyOv"); if(so&&!so.hidden){ $("stClose").click(); return; }
+  const io=$("introOv"); if(io&&!io.hidden){ ($("introSkip")||$("introNext")).click(); return; }
+  const c=$("covClose"); if(c&&c.offsetParent){ c.click(); return; }
+  if(sheetOpen&&$("sheetClose")&&$("sheetClose").offsetParent) $("sheetClose").click(); });
 
 initStore();
 })();

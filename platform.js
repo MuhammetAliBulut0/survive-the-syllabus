@@ -74,6 +74,13 @@
   };
 
   window.STS_SITE = true;
+  // Supabase kütüphanesi yüklenemezse (okul ağı, reklam engelleyici, internet yok) oyuncu bilgilendirilir
+  if (configured && !window.supabase) addEventListener("DOMContentLoaded", () => {
+    const d = document.createElement("div"); d.setAttribute("role", "status");
+    d.style.cssText = "position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:45;max-width:520px;margin:0 auto;background:#1e1430;border:1px solid #ff4d6d;color:#f1eaf7;padding:10px 12px;font-size:13px;line-height:1.45;display:flex;gap:10px;align-items:center";
+    d.innerHTML = '<span style="flex:1">Sunucuya ulaşılamadı. İlerlemen şimdilik bu cihazda tutuluyor; bağlantın düzelince sayfayı yenile.</span><button style="background:#c3f53c;color:#1a0d26;border:0;padding:6px 10px;font:inherit;font-weight:700;cursor:pointer">Tamam</button>';
+    d.querySelector("button").onclick = () => d.remove(); document.body.appendChild(d);
+  });
   const caps = { db, user };
   window.claude = { use: async name => { const s = await sessionP; return s && caps[name] ? caps[name] : null; } };
 
