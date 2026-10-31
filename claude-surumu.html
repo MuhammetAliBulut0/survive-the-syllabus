@@ -484,6 +484,15 @@ window.addEventListener("focus",()=>{ if(now()-lastPull>2000) setTimeout(pull,20
 window.addEventListener("online",()=>setTimeout(pull,500));
 function migrate(){ const f=fresh(); for(const k in f) if(S[k]===undefined) S[k]=f[k];
   S.tot=Object.assign({focus:0,focusMin:0,reviews:0},S.tot); S.shop=Object.assign({owned:[],eq:{}},S.shop); S.settings=Object.assign({len:25,sound:"off",vol:0.5},S.settings); }
+let mergeOpen=false;
+function askGuestMerge(g,r){ return new Promise(res=>{ const ov=$("cov"); mergeOpen=true;
+  const line=x=>`${x.brains||0} Brains · ${x.survived||0} baskın · ${(x.tot&&x.tot.focus)||0} odak oturumu · ${(x.deck||[]).length} hafıza kartı`;
+  ov.innerHTML=`<div class="frame" style="width:min(440px,100%)"><section class="panel"><div class="tag">İki ilerleme bulundu</div><h2>Hangisiyle devam edelim?</h2>
+    <p class="note">Misafirken bu tarayıcıda yaptığın ilerleme ile hesabındaki ilerleme farklı. Birini seç, diğeri silinecek.</p>
+    <button class="btn" id="mgAcc">Hesabımdakini koru<br><small style="font-family:var(--f-mono);font-size:11px">${line(r)}</small></button>
+    <button class="btn plum" id="mgGuest">Misafir ilerlememi hesaba taşı<br><small style="font-family:var(--f-mono);font-size:11px">${line(g)}</small></button></section></div>`;
+  ov.hidden=false; const done=v=>{ mergeOpen=false; ov.hidden=true; ov.innerHTML=""; res(v); };
+  $("mgAcc").onclick=()=>done("account"); $("mgGuest").onclick=()=>done("guest"); }); }
 async function initStore(){
   const l=lsGet(LS_GUEST); if(l&&l.v===1) S=Object.assign(fresh(),l); migrate();
   if(!window.claude) devOK=true; // yerel önizleme
@@ -494,18 +503,21 @@ async function initStore(){
     if(db&&uid){
       LS="sts-state-v1:"+uid; docRef=db.doc("data/users/"+uid+"/game");
       const s=await docRef.get(), remote=s.exists?s.data():null, local=lsGet(LS);
+      const g=lsGet(LS_GUEST), gHas=g&&g.v===1&&!g.uid&&((g.survived||0)+((g.tot&&g.tot.focus)||0)+((g.deck||[]).length)+(g.brains||0))>0;
+      let same=false;
       if(remote&&local&&(local.rev||0)>(remote.rev||0)){ S=Object.assign(fresh(),local); }          // çevrimdışı yapılmış daha yeni yerel ilerleme
-      else if(remote){ S=Object.assign(fresh(),remote); }
+      else if(remote&&gHas&&await askGuestMerge(g,remote)==="guest"){ S=Object.assign(fresh(),g,{rev:remote.rev||0}); lsDel(LS_GUEST); }
+      else if(remote){ S=Object.assign(fresh(),remote); same=true; if(gHas) lsDel(LS_GUEST); }
       else if(local){ S=Object.assign(fresh(),local); }
       else { const g=lsGet(LS_GUEST); S=Object.assign(fresh(),(g&&g.v===1&&!g.uid)?g:{}); S.rev=0; }  // ilk giriş: sadece misafir ilerlemesi taşınır
-      S.uid=uid; migrate(); lastSent=remote&&S.rev===(remote.rev||0)?snap():""; synced=true; lsSet(S);
+      S.uid=uid; migrate(); lastSent=same?snap():""; synced=true; lsSet(S);
       if(!remote||snap()!==lastSent) await save();
       if(!remote) lsDel(LS_GUEST);
       $("saveLbl").textContent="İlerlemen hesabına kaydediliyor."; }
     else $("saveLbl").textContent="İlerlemen bu tarayıcıda tutuluyor.";
   }catch(e){ $("saveLbl").textContent="İlerlemen bu tarayıcıda tutuluyor."; }
   if(S.focus&&S.focus.phase==="focus"&&S.focus.hiddenAt&&now()-S.focus.hiddenAt>30e3) burnFocus("Sayfadan 30 saniyeden uzun ayrıldın. Oturum yandı.");
-  applyDecay(); resolvePledge(); checkQuests(); checkBadges(); tick(); render();
+  applyDecay(); resolvePledge(); checkQuests(); checkBadges(); tick(); render(); save();
 }
 
 /* ---------- yardımcılar ---------- */
@@ -634,6 +646,7 @@ function completeFocus(){
   S.focus={...f,phase:"break",start:now(),end:now()+brk*6e4,brk,hiddenAt:null};
   notify("Oturum tamam!",`+${min>=50?18:8} Brains. ${brk} dakika mola zamanı.`);
   toast(`Odak oturumu tamam · +${min>=50?18:8} Brains`);
+  if(isGuest()&&!S.guestNudged){ S.guestNudged=true; setTimeout(()=>toast("Misafirsin: ilerlemeni korumak için Profil'den hesap oluşturabilirsin"),3000); }
   if(t) checkAuto(t);
   checkQuests(); checkBadges(); save(); render();
 }
@@ -1035,8 +1048,18 @@ function settingsBox(){
   const nOK="Notification" in window, perm=nOK?Notification.permission:"denied";
   return frame(`<div class="tag">Ayarlar</div>
     ${nOK&&perm!=="denied"?`<button class="btn sm plum" id="notifBtn" style="align-self:flex-start"${perm==="granted"?" disabled":""}>${perm==="granted"?"Bildirimler açık":"Tarayıcı bildirimlerini aç"}</button>
-      <p class="note">Mola bitince, oturum bitince ve sürü yaklaşınca haber verir.</p>`:`<p class="note">Bu görünümde tarayıcı bildirimleri kullanılamıyor.</p>`}`);
+      <p class="note">Mola bitince, oturum bitince ve sürü yaklaşınca haber verir.</p>`:`<p class="note">Bu görünümde tarayıcı bildirimleri kullanılamıyor.</p>`}
+    ${accountBox()}`);
 }
+const isGuest=()=>!!(window.STS_isGuest&&window.STS_isGuest());
+function accountBox(){
+  if(!window.STS_account) return "";
+  if(isGuest()) return `<div class="explain"><b>Misafir modundasın.</b> İlerlemen sadece bu tarayıcıda duruyor; tarayıcı verileri silinirse kaybolur. Hesap oluşturursan şimdiye kadar yaptığın her şey hesabına taşınır.</div>
+    <button class="btn sm" id="accUp" style="align-self:flex-start">Hesap oluştur</button>`;
+  return `<div class="tag" style="margin-top:6px">Hesap</div><div class="pills"><button class="pill" id="accPass">Şifre değiştir</button><button class="pill" id="accLegal">Aydınlatma Metni</button><button class="pill" id="accDel" style="color:var(--blood)">Hesabımı sil</button></div>`;
+}
+function bindAccount(root){ const on=(id,f)=>{const e=root.querySelector("#"+id); if(e) e.onclick=f;};
+  on("accUp",()=>window.STS_openSignup()); on("accPass",()=>STS_account.changePass()); on("accLegal",()=>STS_account.legal()); on("accDel",()=>STS_account.del()); }
 function renderProfile(){
   const el=$("profileTab");
   const sub=`<div class="tabs" style="margin-bottom:2px"><button id="psMe" class="${profSub==="me"?"on":""}">Ben</button><button id="psBoard" class="${profSub==="board"?"on":""}">Sıralama</button></div>`;
@@ -1049,7 +1072,7 @@ function renderProfile(){
   el.querySelectorAll("[data-delexam]").forEach(b=>b.onclick=()=>{ S.exams=S.exams.filter(e=>e.id!==b.dataset.delexam); save(); render(); });
   on("repCopy",async()=>{ const w=weekStats(); const txt=`Survive the Syllabus 🧟 Bu hafta ${hm(w.min)} odaklandım, ${w.sessions} oturum, ${w.reviews} kart tekrarı. ${streak()} günlük serim var.${w.best?` En verimli günüm ${w.best}.`:""}`;
     try{await navigator.clipboard.writeText(txt);toast("Kopyalandı")}catch(e){toast("Kopyalanamadı, ekran görüntüsü al")} });
-  on("notifBtn",askNotif);
+  on("notifBtn",askNotif); bindAccount(el);
 }
 
 /* ---------- odak sekmesi ---------- */
@@ -1157,6 +1180,7 @@ function renderDock(){
   on("dockTasks",()=>openSheet("tasks")); on("dockStart",()=>openSheet("tasks")); on("dockShelter",()=>openSheet("shelter")); on("dockFocus",()=>openSheet("focus"));
   on("respawn",respawn);
   on("dismissWin",()=>{S.lastWin=null;save();render()});
+  on("winSignup",()=>window.STS_openSignup&&window.STS_openSignup());
   on("shareBtn",async()=>{const w=S.lastWin;const txt=`Survive the Syllabus 🧟 Bugün zombi baskınından sağ çıktım: ${w.tasks} görev, sürüye ${fmt(w.left)} kala. ${streak()} günlük serim var.`;
     try{await navigator.clipboard.writeText(txt);toast("Kopyalandı, story'ye yapıştır")}catch(e){toast("Kopyalanamadı, kartın ekran görüntüsünü al")}});
 }
@@ -1211,7 +1235,7 @@ function winView(){
   if(w.kind==="cured") return frame(`<div class="tag">Tedavi tamam</div><div class="big">Kıl payı kurtuldun</div><div class="stats">${w.tasks} görev · +5 Brains</div><button class="link" id="dismissWin" style="align-self:flex-start">Kapat</button>`,"card");
   return frame(`<div class="tag">${w.boss?"Final Bossu yenildi":"Survive the Syllabus"}</div><div class="big">${w.boss?"Bossu devirdin":"Bugün hayatta kaldım"}</div>
     <div class="stats">${w.tasks} görev bitti · sürüye ${fmt(w.left)} kala · ${w.streak||streak()} günlük seri · ${S.brains} Brains</div>
-    <div class="btns" style="justify-content:flex-start"><button class="btn sm" id="shareBtn">Metni kopyala</button><button class="link" id="dismissWin">Kapat</button></div>`,"card");
+    <div class="btns" style="justify-content:flex-start"><button class="btn sm" id="shareBtn">Metni kopyala</button><button class="link" id="dismissWin">Kapat</button></div>${isGuest()?`<div class="explain" style="margin-top:4px">Misafirsin: bu ilerleme sadece bu tarayıcıda. <button class="link" id="winSignup" style="padding:0">Hesap oluştur</button>, hepsi hesabına taşınsın.</div>`:""}`,"card");
 }
 function deathView(){
   return frame(`<div class="tag sick">Hayatta kalan #${S.survivor}</div><div class="big">Sürü seni yakaladı</div>
@@ -1736,6 +1760,7 @@ function useCard(id){
   if(r&&c.ability==="taxfree") r.tasks.forEach(t=>checkAuto(t));
 }
 function renderCov(){
+  if(mergeOpen) return;
   const ov=$("cov"); let id=null, html="";
   if(S.pendingCard&&!sheetOpen){ const p=S.pendingCard, c=cardById(p.id); id=p.id;
     html=`<div class="tag">${p.dup?(p.recharge?"Güç yeniden doldu":"Tekrar çıktı"):"Yeni kart"}</div>

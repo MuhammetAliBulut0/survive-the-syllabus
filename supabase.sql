@@ -27,3 +27,14 @@ create policy "kv_update" on public.kv for update to authenticated
 
 -- Not: Eski sürümden kalan ai_usage tablosu varsa silebilirsin:
 -- drop function if exists public.bump_ai_usage(uuid,int); drop table if exists public.ai_usage;
+
+-- 3) Hesap silme (KVKK: kullanıcı hesabını ve verilerini kendisi silebilsin)
+create or replace function public.delete_my_account()
+returns void language plpgsql security definer set search_path = public, auth as $$
+begin
+  if auth.uid() is null then raise exception 'not signed in'; end if;
+  delete from public.kv where owner = auth.uid();
+  delete from auth.users where id = auth.uid();
+end $$;
+revoke all on function public.delete_my_account() from public, anon;
+grant execute on function public.delete_my_account() to authenticated;
