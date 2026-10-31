@@ -107,7 +107,7 @@
       box.querySelector("#gUp").onclick = async () => {
         const c = read(); if (!c) return; say("Hesap oluşturuluyor…");
         const { data, error } = await sb.auth.signUp(c);
-        if (error) say(/registered|exists/i.test(error.message) ? "Bu e-postayla zaten hesap var. 'Giriş yap'a bas." : /weak|password/i.test(error.message) ? "Şifre çok zayıf, daha uzun bir şifre seç." : "Hesap oluşturulamadı: " + error.message, true);
+        if (error) say(/not allowed|disabled/i.test(error.message) ? "Yeni hesap açma şu an kapalı. Site yöneticisinin Supabase'de yeni kayıtları açması gerekiyor." : /registered|exists/i.test(error.message) ? "Bu e-postayla zaten hesap var. 'Giriş yap'a bas." : /weak|password/i.test(error.message) ? "Şifre çok zayıf, daha uzun bir şifre seç." : "Hesap oluşturulamadı: " + error.message, true);
         else if (data && data.session) location.reload();
         else say("Hesap oluştu ama e-posta onayı bekliyor. Supabase'de 'Confirm email' ayarını kapatırsan onay gerekmez.", true);
       };

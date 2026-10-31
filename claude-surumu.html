@@ -446,41 +446,61 @@ let sheetOpen = false, tab = "tasks", profSub = "me";
 
 /* ---------- kayıt ---------- */
 let docRef=null, writing=false, pending=false, DB=null, UID=null, USER=null, boardT=null;
-const LS="sts-state-v1";
-const lsGet=()=>{try{return JSON.parse(localStorage.getItem(LS)||"null")}catch(e){return null}};
+/* Yerel yedek her hesaba ayrı tutulur; misafir ilerlemesi ayrı anahtarda */
+const LS_GUEST="sts-state-v1";
+let LS=LS_GUEST, lastSent="", synced=false;
+const lsGet=(k=LS)=>{try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}};
 const lsSet=v=>{try{localStorage.setItem(LS,JSON.stringify(v))}catch(e){}};
+const lsDel=k=>{try{localStorage.removeItem(k)}catch(e){}};
 function trimLogs(){ ["focusLog","reviewLog","taskLog"].forEach(k=>{ if(S[k]&&S[k].length>500) S[k]=S[k].slice(-500); }); }
+const snap=()=>{ const c=Object.assign({},S); delete c.rev; delete c.savedAt; return JSON.stringify(c); };
+/* Kayıt: her yazımda sürüm (rev) bir artar. Sunucuda bizimkinden yeni sürüm varsa üstüne yazmayız, onu alırız. */
 async function save(){
-  trimLogs(); S.savedAt=now(); lsSet(S); scheduleBoard(); if(!docRef) return;
-  if(writing){pending=true;return} writing=true;
-  try{ await docRef.set(JSON.parse(JSON.stringify(S))); $("saveLbl").textContent="İlerlemen hesabına kaydedildi."; }
-  catch(e){ $("saveLbl").textContent = "Hesaba kaydedilemedi, bu tarayıcıda tutuluyor."; }
+  trimLogs(); lsSet(S); scheduleBoard(); if(!docRef||!synced) return;
+  if(writing){pending=true;return}
+  const body=snap(); if(body===lastSent) return;
+  writing=true;
+  try{
+    const cur=await docRef.get(), remote=cur.exists?cur.data():null, rRev=(remote&&remote.rev)||0;
+    if(remote&&rRev>(S.rev||0)){ adopt(remote,"Diğer cihazındaki daha yeni ilerleme yüklendi."); }
+    else { S.rev=rRev+1; S.savedAt=now(); await docRef.set(JSON.parse(JSON.stringify(S))); lastSent=body; lsSet(S); $("saveLbl").textContent="İlerlemen hesabına kaydedildi."; }
+  }catch(e){ $("saveLbl").textContent = "Hesaba kaydedilemedi, bu tarayıcıda tutuluyor. İnternet gelince tekrar denenecek."; }
   writing=false; if(pending){pending=false;save()}
 }
-/* cihazlar arası eşitleme: başka cihazda daha yeni kayıt varsa onu al */
-let pulling=false;
+function adopt(d,msg){ const hadFocus=!!S.focus; S=Object.assign(fresh(),d); migrate(); lastSent=snap(); lsSet(S); render(); if(!hadFocus&&S.focus) lockScreen(); if(msg) toast(msg); }
+/* cihazlar arası eşitleme: sunucudaki sürüm daha yeniyse onu al */
+let pulling=false, lastPull=0;
 async function pull(){
-  if(!docRef||writing||pending||pulling||document.visibilityState!=="visible") return; pulling=true;
+  if(!docRef||!synced||writing||pending||pulling||document.visibilityState!=="visible") return; pulling=true; lastPull=now();
   try{ const s=await docRef.get();
-    if(s.exists){ const d=s.data(); if((d.savedAt||0)>(S.savedAt||0)+500){ const keepFocusUI=!!S.focus;
-      S=Object.assign(fresh(),d); migrate(); lsSet(S); render(); if(!keepFocusUI&&S.focus) lockScreen(); toast("Diğer cihazındaki ilerleme yüklendi"); } } }
-  catch(e){}
+    if(s.exists){ const d=s.data(); if((d.rev||0)>(S.rev||0)) adopt(d,"Diğer cihazındaki ilerleme yüklendi."); }
+    if(snap()!==lastSent) save();
+  }catch(e){}
   pulling=false;
 }
-setInterval(pull,15000);
-document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") setTimeout(pull,300); });
-window.addEventListener("focus",()=>setTimeout(pull,300));
+setInterval(pull,8000);
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") setTimeout(pull,200); });
+window.addEventListener("focus",()=>{ if(now()-lastPull>2000) setTimeout(pull,200); });
+window.addEventListener("online",()=>setTimeout(pull,500));
 function migrate(){ const f=fresh(); for(const k in f) if(S[k]===undefined) S[k]=f[k];
   S.tot=Object.assign({focus:0,focusMin:0,reviews:0},S.tot); S.shop=Object.assign({owned:[],eq:{}},S.shop); S.settings=Object.assign({len:25,sound:"off",vol:0.5},S.settings); }
 async function initStore(){
-  const l=lsGet(); if(l&&l.v===1) S=Object.assign(fresh(),l); migrate();
+  const l=lsGet(LS_GUEST); if(l&&l.v===1) S=Object.assign(fresh(),l); migrate();
   if(!window.claude) devOK=true; // yerel önizleme
   render();
   try{
     const user=await claude.use("user"), db=await claude.use("db"), uid=user?await user.id():null; DB=db; UID=uid; USER=user;
     try{ devOK=!!(user&&await Promise.resolve(user.isOwner())); }catch(e){}
-    if(db&&uid){ docRef=db.doc("data/users/"+uid+"/game"); const s=await docRef.get();
-      if(s.exists){S=Object.assign(fresh(),s.data()); migrate(); lsSet(S)} else await save();
+    if(db&&uid){
+      LS="sts-state-v1:"+uid; docRef=db.doc("data/users/"+uid+"/game");
+      const s=await docRef.get(), remote=s.exists?s.data():null, local=lsGet(LS);
+      if(remote&&local&&(local.rev||0)>(remote.rev||0)){ S=Object.assign(fresh(),local); }          // çevrimdışı yapılmış daha yeni yerel ilerleme
+      else if(remote){ S=Object.assign(fresh(),remote); }
+      else if(local){ S=Object.assign(fresh(),local); }
+      else { const g=lsGet(LS_GUEST); S=Object.assign(fresh(),(g&&g.v===1&&!g.uid)?g:{}); S.rev=0; }  // ilk giriş: sadece misafir ilerlemesi taşınır
+      S.uid=uid; migrate(); lastSent=remote&&S.rev===(remote.rev||0)?snap():""; synced=true; lsSet(S);
+      if(!remote||snap()!==lastSent) await save();
+      if(!remote) lsDel(LS_GUEST);
       $("saveLbl").textContent="İlerlemen hesabına kaydediliyor."; }
     else $("saveLbl").textContent="İlerlemen bu tarayıcıda tutuluyor.";
   }catch(e){ $("saveLbl").textContent="İlerlemen bu tarayıcıda tutuluyor."; }
@@ -567,7 +587,7 @@ function respawn(){
   const keepKeys=["survived","deaths","cards","earned","week","weekEarned","days","badges","focusLog","deck","reviewLog","taskLog","exams","courses","quests","pledge","shop","remind","settings","tot"];
   const keep={survivor:S.survivor+1}; keepKeys.forEach(k=>keep[k]=S[k]);
   if(S.savedByShield) Object.assign(keep,{brains:S.brains,bar:S.bar,wpn:S.wpn,shl:S.shl});
-  S=Object.assign(fresh(),keep); if(S.shop.eq) S.shop.eq.outfit=null; save(); render(); }
+  S=Object.assign(fresh(),keep,{rev:S.rev,uid:S.uid}); if(S.shop.eq) S.shop.eq.outfit=null; save(); render(); }
 
 /* ---------- görev bitirme penceresi ---------- */
 let modalTask=null;
@@ -737,18 +757,51 @@ function buildScape(ctx,kind,vol){
   const st={}; const plan=(span)=>{ if(sc.ev) sc.ev(ctx,comp,Math.max(ctx.currentTime,st.until||ctx.currentTime),span,st); st.until=(st.until||ctx.currentTime)+span; };
   return {master,nodes,st,plan,sc};
 }
+/* Oynatma: her ses bir kez 40 sn'lik dikişsiz döngü olarak önceden üretilir, sonra tek kaynak olarak çalınır.
+   Canlı yüzlerce düğüm yerine tek tampon: telefonda takılmaz, sekme yavaşlasa da kesilmez. */
+const LOOP_LEN=40, LOOP_XF=3, LOOP_SR=32000, RENDERED={};
+let sndToken=0, unlockEl=null;
+async function renderLoop(kind){
+  if(RENDERED[kind]) return RENDERED[kind];
+  const OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext; if(!OAC) throw new Error("no offline");
+  const total=LOOP_LEN+LOOP_XF, ctx=new OAC(2,Math.ceil(LOOP_SR*total),LOOP_SR);
+  const sc=buildScape(ctx,kind,1); sc.master.gain.cancelScheduledValues(0); sc.master.gain.value=1/(LEVEL[kind]||1);
+  sc.st.until=0; sc.plan(total);
+  const buf=await ctx.startRendering();
+  const N=Math.round(LOOP_SR*LOOP_LEN), X=Math.round(LOOP_SR*LOOP_XF);
+  const out=[]; let sum=0, pk=0;
+  for(let ch=0;ch<2;ch++){ const src=buf.getChannelData(ch), d=new Float32Array(N);
+    for(let i=0;i<N;i++){ let v=src[i]; if(i<X){ const k=i/X; v=src[i]*Math.sin(k*Math.PI/2)+src[i+N]*Math.cos(k*Math.PI/2); } d[i]=v; const a=Math.abs(v); if(a>pk) pk=a; sum+=v*v; }
+    out.push(d); }
+  const rms=Math.sqrt(sum/(2*N))||1e-4, g=Math.min(0.08/rms,0.92/(pk||1));
+  out.forEach(d=>{ for(let i=0;i<d.length;i++) d[i]*=g; });
+  return (RENDERED[kind]={data:out,sr:LOOP_SR,len:N});
+}
+function unlockIOS(){ // iPhone sessiz modunda bile Web Audio duyulsun diye sessiz bir medya öğesi çal
+  try{ if(!unlockEl){ unlockEl=document.createElement("audio"); unlockEl.setAttribute("playsinline",""); unlockEl.loop=true;
+      unlockEl.src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"; }
+    const p=unlockEl.play(); if(p&&p.catch) p.catch(()=>{}); }catch(e){}
+}
 function startSound(kind,vol){
   stopSound(); if(!kind||kind==="off") return;
   try{ AC=AC||new (window.AudioContext||window.webkitAudioContext)(); if(AC.state!=="running") AC.resume(); }catch(e){ return; }
-  const s=buildScape(AC,kind,vol*0.9); if(!s) return;
-  s.st.until=AC.currentTime; s.plan(2);
-  const iv=setInterval(()=>{ if(!AC) return; if((s.st.until||0)-AC.currentTime<1.5) s.plan(2); },500);
-  SND={...s,iv,kind};
+  unlockIOS();
+  const token=++sndToken, master=AC.createGain(); master.gain.value=0; master.connect(AC.destination);
+  SND={kind,master,src:null,vol,loading:true};
+  const play=r=>{ if(token!==sndToken||!SND) return;
+    const b=AC.createBuffer(2,r.len,r.sr); r.data.forEach((d,ch)=>{ if(b.copyToChannel) b.copyToChannel(d,ch); else b.getChannelData(ch).set(d); });
+    const src=AC.createBufferSource(); src.buffer=b; src.loop=true; src.connect(master); src.start(AC.currentTime+0.02);
+    master.gain.setValueAtTime(0,AC.currentTime); master.gain.linearRampToValueAtTime(SND.vol,AC.currentTime+1.2);
+    SND.src=src; SND.loading=false; };
+  if(RENDERED[kind]) play(RENDERED[kind]);
+  else { toast("Ses hazırlanıyor…");
+    renderLoop(kind).then(play).catch(()=>{ if(token===sndToken) toast("Bu cihaz ortam sesini çalamıyor"); }); }
 }
-function setVol(v){ if(SND&&AC){ SND.master.gain.cancelScheduledValues(AC.currentTime); SND.master.gain.setTargetAtTime(v*0.9*(SND.master.lvl||1),AC.currentTime,0.1); } }
-function stopSound(){ if(SND){ const s=SND; SND=null; clearInterval(s.iv);
+function setVol(v){ if(SND&&AC){ SND.vol=v; SND.master.gain.cancelScheduledValues(AC.currentTime); SND.master.gain.setTargetAtTime(v,AC.currentTime,0.1); } }
+function stopSound(){ sndToken++; if(SND){ const s=SND; SND=null;
   try{ s.master.gain.cancelScheduledValues(AC.currentTime); s.master.gain.setTargetAtTime(0,AC.currentTime,0.15); }catch(e){}
-  setTimeout(()=>{ s.nodes.forEach(n=>{ try{n.stop()}catch(e){} }); try{s.master.disconnect()}catch(e){} },700); } }
+  setTimeout(()=>{ try{ s.src&&s.src.stop(); }catch(e){} try{s.master.disconnect()}catch(e){} },700); }
+  try{ unlockEl&&unlockEl.pause(); }catch(e){} }
 const soundOptions=sel=>SOUNDS.map(([v,l])=>`<option value="${v}"${sel===v?" selected":""}>${l}</option>`).join("");
 
 /* ---------- bildirimler ---------- */
@@ -1077,7 +1130,7 @@ function devAct0(a){
       .forEach(([c,f,b],i)=>S.deck.push({id:"k"+now()+i,front:f,back:b,course:addCourse(c),box:0,due:now(),created:now()})); toast("5 örnek kart eklendi"); }
   else if(a==="exam"){ const d=new Date(now()+3*DAY); S.exams.push({id:"e"+now(),course:addCourse("Veri Yapıları"),date:dayKey(d.getTime()),type:"Vize",bossWon:false}); toast("3 gün sonrasına sınav eklendi, Final Bossu açıldı"); }
   else if(a==="pledgeWeek"){ if(!S.pledge) return toast("Önce Profil'den haftalık söz ver."); S.pledge.week="2000-H1"; S.pledge.resolved=false; resolvePledge(); }
-  else if(a==="reset"){ S=fresh(); sheetOpen=false; }
+  else if(a==="reset"){ S=Object.assign(fresh(),{rev:S.rev,uid:S.uid}); sheetOpen=false; }
   save(); render();
 }
 document.querySelectorAll("[data-dev]").forEach(b=>b.onclick=()=>devAct(b.dataset.dev));
@@ -1206,6 +1259,7 @@ function bindFocusTab(){
   const el=$("focusTab");
   el.querySelectorAll("[data-len]").forEach(b=>b.onclick=()=>{ S.settings.len=+b.dataset.len; save(); render(); });
   const fs=$("fSound2"); if(fs) fs.onchange=()=>{ S.settings.sound=fs.value; save(); if(SND&&!S.focus) startSound(fs.value,S.settings.vol); };
+  const warm=()=>{ const k=S.settings.sound; if(k&&k!=="off"&&!RENDERED[k]) setTimeout(()=>renderLoop(k).catch(()=>{}),300); }; warm(); if(fs) fs.addEventListener("change",warm);
   const fp=$("fPrev"); if(fp) fp.onclick=()=>{ if(SND){ stopSound(); fp.textContent="Dinle"; } else if(S.settings.sound!=="off"){ startSound(S.settings.sound,S.settings.vol); fp.textContent="Durdur"; } else toast("Önce bir ses seç"); };
   const ft=$("fTask"); if(ft) ft.onchange=()=>{ focusTask=ft.value; const t=S.raid&&S.raid.tasks.find(x=>x.id===ft.value); if(t&&t.course) $("fCourse").value=t.course; };
   $("fStart").onclick=startFocus;
