@@ -18,4 +18,3 @@ Giriş linkleri Supabase'in kendi mail servisiyle gider. Ücretsiz planda saatte
 
 ## Güncelleme
 Claude'daki sürüm değişince yeni dosyayı `kaynak/claude-surumu.html` olarak kaydet, `python3 build.py` çalıştır, GitHub'a yükle. Vercel kendiliğinden yeniden yayınlar.
-
