@@ -291,14 +291,15 @@ textarea{min-height:90px;resize:vertical}
 .fRingBox svg{width:100%;height:100%;transform:rotate(-90deg)}
 .fTrack{fill:color-mix(in oklab,#0d0814 55%,transparent);stroke:#2a2038;stroke-width:6}
 .fBar{fill:none;stroke:#8a6fb8;stroke-width:6;stroke-linecap:round;stroke-dasharray:565;stroke-dashoffset:565;transition:stroke-dashoffset 1s linear}
-.brk .fBar{stroke:#6fb8a8}
+.brk .fBar{stroke:#ffb36b}
+.brk .fTrack{fill:color-mix(in oklab,#0e1a1b 50%,transparent);stroke:#24403f}
+.brk .fTop,.brk .fClock span{color:#cfe3df}
+.brk .fClock b{color:#fff1e0}
 .fClock{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:0 18%}
 .fClock b{font-family:var(--f-mono);font-weight:500;font-size:clamp(40px,12vw,60px);color:#e8e0f2;font-variant-numeric:tabular-nums}
 .fClock span{font-size:13px;color:#9a8fb0;line-height:1.35;overflow-wrap:anywhere}
 .fWarn{font-size:14px;color:#ffb3c1;background:#2a1020;padding:8px 12px}
 .fBot{display:flex;flex-direction:column;gap:12px;align-items:center}
-.fSnd{display:flex;gap:8px;align-items:center;font-size:12px;color:#9a8fb0}
-.fSnd select{width:auto;background:#160e22;border-color:#2a2038;color:#d9cfe6;padding:6px 8px} .fSnd input{width:110px;accent-color:#8a6fb8}
 .fBtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .fb{background:transparent;border:1px solid #3a2e4e;color:#c9bedb;padding:10px 18px;font-size:14px}
 .fb.main{background:#8a6fb8;border-color:#8a6fb8;color:#120a1c;font-weight:700}
@@ -332,7 +333,7 @@ textarea{min-height:90px;resize:vertical}
 
 <div class="sheet gut" id="sheet" hidden><div class="sheetIn">
   <div class="sheetHead">
-    <div class="tabs" role="tablist"><button id="tab_tasks" class="on" role="tab">Görevler</button><button id="tab_focus" role="tab">Odak</button><button id="tab_review" role="tab">Tekrar</button><button id="tab_cards" role="tab">Kartlar</button><button id="tab_shelter" role="tab">Sığınak</button><button id="tab_profile" role="tab">Profil</button></div>
+    <div class="tabs" role="tablist"><button id="tab_tasks" class="on" role="tab">Görevler</button><button id="tab_focus" role="tab">Pomodoro</button><button id="tab_review" role="tab">Tekrar</button><button id="tab_cards" role="tab">Kartlar</button><button id="tab_shelter" role="tab">Sığınak</button><button id="tab_profile" role="tab">Profil</button></div>
     <button class="closeX" id="sheetClose" aria-label="Paneli kapat">×</button>
   </div>
   <main id="main"></main>
@@ -367,7 +368,7 @@ textarea{min-height:90px;resize:vertical}
       <button data-dev="infect">Enfekte et</button>
       <button data-dev="kill">Öldür</button>
       <span class="h">Odak ve tekrar</span>
-      <button data-dev="focusEnd">Odak oturumunu hemen bitir</button>
+      <button data-dev="focusEnd">Pomodoroyu hemen bitir</button>
       <button data-dev="deck">5 örnek hafıza kartı ekle</button>
       <button data-dev="pledgeWeek">Haftalık sözü sonuçlandır</button>
       <span class="h">Sığınak</span>
@@ -408,16 +409,14 @@ textarea{min-height:90px;resize:vertical}
 <div class="focusOv" id="focusOv" hidden>
   <canvas id="focusScene" aria-hidden="true"></canvas>
   <div class="fIn">
-    <div class="fTop"><span id="fPhase">Odak</span><span id="fRaid"></span></div>
+    <div class="fTop"><span id="fPhase">Pomodoro</span><span id="fRaid"></span></div>
     <div class="fMid">
       <div class="fRingBox"><svg viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="90" class="fTrack"/><circle cx="100" cy="100" r="90" class="fBar" id="fRing"/></svg>
         <div class="fClock"><b id="fTime">25:00</b><span id="fTaskLbl"></span></div></div>
       <div class="fWarn" id="fWarn" hidden></div>
     </div>
     <div class="fBot">
-      <div class="fSnd"><label for="fSound">Ses</label><select id="fSound"></select>
-        <input type="range" id="fVol" min="0" max="1" step="0.05" aria-label="Ses düzeyi"></div>
-      <div class="fBtns"><button class="fb" id="fQuit">Vazgeç</button><button class="fb main" id="fNext" hidden>Yeni oturuma başla</button></div>
+      <div class="fBtns"><button class="fb" id="fQuit">Vazgeç</button><button class="fb main" id="fNext" hidden>Yeni pomodoro başlat</button></div>
     </div>
   </div>
 </div>
@@ -446,7 +445,7 @@ const SITE = !!window.STS_SITE;
 const fresh = () => ({ v:1, hero:null, cards:{}, earned:0, week:"", weekEarned:0, shield:false, pendingCard:null, survivor:1, status:"alive", brains:0, bar:0, wpn:0, shl:0, survived:0, deaths:0,
   lastActive:now(), lastDecayCheck:now(), raid:null, lastWin:null, decayMsg:"",
   days:[], badges:{}, focus:null, focusLog:[], deck:[], reviewLog:[], taskLog:[], exams:[], courses:[],
-  quests:{day:"",claimed:[]}, pledge:null, shop:{owned:[],eq:{}}, remind:false, settings:{len:25,sound:"off",vol:0.5},
+  quests:{day:"",claimed:[]}, pledge:null, shop:{owned:[],eq:{}}, remind:false, settings:{len:25,brk:5},
   tot:{focus:0,focusMin:0,reviews:0}, cleanStreak:0 });
 let S = fresh();
 let draft = [{title:"Matematik — türev soruları",qty:15,unit:"soru",course:"Matematik"},{title:"OOP ders notları",qty:30,unit:"dakika",course:"OOP"}];
@@ -492,10 +491,10 @@ document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==
 window.addEventListener("focus",()=>{ if(now()-lastPull>2000) setTimeout(pull,200); });
 window.addEventListener("online",()=>setTimeout(pull,500));
 function migrate(){ const f=fresh(); for(const k in f) if(S[k]===undefined) S[k]=f[k];
-  S.tot=Object.assign({focus:0,focusMin:0,reviews:0},S.tot); S.shop=Object.assign({owned:[],eq:{}},S.shop); S.settings=Object.assign({len:25,sound:"off",vol:0.5},S.settings); }
+  S.tot=Object.assign({focus:0,focusMin:0,reviews:0},S.tot); S.shop=Object.assign({owned:[],eq:{}},S.shop); S.settings=Object.assign({len:25,brk:5},S.settings); delete S.settings.sound; delete S.settings.vol; if(S.settings.len===50) S.settings.len=40; }
 let mergeOpen=false;
 function askGuestMerge(g,r){ return new Promise(res=>{ const ov=$("cov"); mergeOpen=true;
-  const line=x=>`${x.brains||0} Brains · ${x.survived||0} baskın · ${(x.tot&&x.tot.focus)||0} odak oturumu · ${(x.deck||[]).length} hafıza kartı`;
+  const line=x=>`${x.brains||0} Brains · ${x.survived||0} baskın · ${(x.tot&&x.tot.focus)||0} pomodoro · ${(x.deck||[]).length} hafıza kartı`;
   ov.innerHTML=`<div class="frame" style="width:min(440px,100%)"><section class="panel"><div class="tag">İki ilerleme bulundu</div><h2>Hangisiyle devam edelim?</h2>
     <p class="note">Misafirken bu tarayıcıda yaptığın ilerleme ile hesabındaki ilerleme farklı. Birini seç, diğeri silinecek.</p>
     <button class="btn" id="mgAcc">Hesabımdakini koru<br><small style="font-family:var(--f-mono);font-size:11px">${line(r)}</small></button>
@@ -596,7 +595,7 @@ function completeTask(id,verdict,half=false){
 }
 function checkAuto(t){
   if(!t||t.done||!autoUnit(t)) return;
-  if(t.unit==="dakika"&&(t.focusMin||0)>=target(t)) completeTask(t.id,`Odak modunda ${t.focusMin} dakika çalıştın.`);
+  if(t.unit==="dakika"&&(t.focusMin||0)>=target(t)) completeTask(t.id,`Pomodoroda ${t.focusMin} dakika çalıştın.`);
   if(t.unit==="kart"&&(t.reviews||0)>=target(t)) completeTask(t.id,`${t.reviews} hafıza kartını tekrar ettin.`);
 }
 function infect(){
@@ -606,7 +605,7 @@ function infect(){
   r.phase="infected"; r.infectDeadline=now()+infectMin()*6e4;
   save(); render(); toast(`Isırıldın. ${infectMin()} dakikada tedavi ol.`); notify("Isırıldın!",`Tedavi için ${infectMin()} dakikan var.`);
 }
-function die(){ S.status="dead"; S.deaths++; if(S.shield){ S.shield=false; S.savedByShield=true; } else { S.brains=0; S.bar=0; S.wpn=0; S.shl=0; S.savedByShield=false; } S.raid=null; if(S.focus) S.focus=null; stopSound(); sheetOpen=false; save(); render(); }
+function die(){ S.status="dead"; S.deaths++; if(S.shield){ S.shield=false; S.savedByShield=true; } else { S.brains=0; S.bar=0; S.wpn=0; S.shl=0; S.savedByShield=false; } S.raid=null; if(S.focus) S.focus=null; sheetOpen=false; save(); render(); }
 function respawn(){
   const keepKeys=["survived","deaths","cards","earned","week","weekEarned","days","badges","focusLog","deck","reviewLog","taskLog","exams","courses","quests","pledge","shop","remind","settings","tot"];
   const keep={survivor:S.survivor+1}; keepKeys.forEach(k=>keep[k]=S[k]);
@@ -619,10 +618,10 @@ function openModal(id){
   modalTask=S.raid.tasks.find(x=>x.id===id); const t=modalTask, fm=t.focusMin||0;
   $("mTitle").textContent=`${t.title} · ${target(t)} ${t.unit}`;
   $("mResult").hidden=true; $("mText").value="";
-  if(fm>0){ $("mBody").innerHTML=`<p class="note" style="color:var(--text)">Bu göreve odak modunda <b>${fm} dakika</b> çalıştın. Tam ödül alacaksın.</p>`;
+  if(fm>0){ $("mBody").innerHTML=`<p class="note" style="color:var(--text)">Bu göreve pomodoroda <b>${fm} dakika</b> çalıştın. Tam ödül alacaksın.</p>`;
     $("mText").hidden=true; $("mSend").textContent=`Tamamla · +${BRAINS_PER_TASK} Brains`; }
-  else { $("mBody").innerHTML=`<p class="note">Bu göreve odak modunda hiç çalışmadın. Kısa bir özetle bitirebilirsin ama <b>yarım ödül</b> (+${BRAINS_HALF}) alırsın. Odak modunda çalışırsan tam ödül (+${BRAINS_PER_TASK}) senin.</p>
-      <button class="link" id="mFocus" style="align-self:flex-start">Bu görevle odak oturumu başlat</button>`;
+  else { $("mBody").innerHTML=`<p class="note">Bu göreve pomodoroda hiç çalışmadın. Kısa bir özetle bitirebilirsin ama <b>yarım ödül</b> (+${BRAINS_HALF}) alırsın. Pomodoroda çalışırsan tam ödül (+${BRAINS_PER_TASK}) senin.</p>
+      <button class="link" id="mFocus" style="align-self:flex-start">Bu görevle pomodoro başlat</button>`;
     $("mText").hidden=false; $("mSend").textContent=`Özetle bitir · +${BRAINS_HALF} Brains`;
     $("mFocus").onclick=()=>{ const id=t.id; closeModal(); focusTask=id; openSheet("focus"); }; }
   $("modal").hidden=false; if(!fm) $("mText").focus();
@@ -631,7 +630,7 @@ function closeModal(){ $("modal").hidden=true; modalTask=null; }
 $("mCancel").onclick=closeModal; $("modal").addEventListener("click",e=>{ if(e.target.id==="modal") closeModal(); });
 $("mSend").onclick=()=>{
   const t=modalTask; if(!t) return; const res=$("mResult");
-  if((t.focusMin||0)>0){ closeModal(); return completeTask(t.id,`Odak modunda ${t.focusMin} dakika çalışıldı.`); }
+  if((t.focusMin||0)>0){ closeModal(); return completeTask(t.id,`Pomodoroda ${t.focusMin} dakika çalışıldı.`); }
   const txt=$("mText").value.trim(); res.hidden=false; res.className="result";
   if(txt.length<30){ res.textContent="En az 30 karakterlik bir özet yaz: hangi konu, ne yaptın, nerede zorlandın."; res.classList.add("no"); return; }
   closeModal(); completeTask(t.id,"Özetle bitirildi.",true);
@@ -639,35 +638,38 @@ $("mSend").onclick=()=>{
 
 /* ---------- odak modu ---------- */
 let focusTask=null, wakeLock=null, focusQuit=false;
-function focusLen(){ return S.settings.len===50?50:25; }
+const POMO=[25,30,40], BREAKS=[5,10,15], POMO_BRAINS={25:8,30:10,40:14}, SET_BONUS=10;
+function focusLen(){ return POMO.includes(S.settings.len)?S.settings.len:25; }
+function breakLen(){ return BREAKS.includes(S.settings.brk)?S.settings.brk:5; }
+const pomoBrains=min=>POMO_BRAINS[min]||Math.max(1,Math.round(min/3));
 function startFocus(){
   const taskId=$("fTask")?$("fTask").value:"", course=addCourse(($("fCourse")?$("fCourse").value:"")||((S.raid&&S.raid.tasks.find(t=>t.id===taskId)||{}).course||""));
   const len=focusLen(), n=((S.focus&&S.focus.n)||0)+1;
   S.focus={phase:"focus",start:now(),end:now()+len*6e4,len,taskId:taskId||null,course,n,hiddenAt:null};
-  sheetOpen=false; focusQuit=false; save(); render(); lockScreen(); startSound(S.settings.sound,S.settings.vol);
+  sheetOpen=false; focusQuit=false; save(); render(); lockScreen();
 }
 async function lockScreen(){ try{ if(navigator.wakeLock) wakeLock=await navigator.wakeLock.request("screen"); }catch(e){} }
 function unlockScreen(){ try{ wakeLock&&wakeLock.release(); }catch(e){} wakeLock=null; }
 function completeFocus(){
   const f=S.focus, min=f.len; S.tot.focus++; S.tot.focusMin+=min;
   S.focusLog.push({at:now(),min,course:f.course||"",taskId:f.taskId||null});
-  addBrains(min>=50?18:8); active(); markDay();
+  const set=f.n%4===0, gain=pomoBrains(min)+(set?SET_BONUS:0); addBrains(gain); active(); markDay();
   const t=S.raid&&f.taskId&&S.raid.tasks.find(x=>x.id===f.taskId);
   if(t&&!t.done){ t.focusMin=(t.focusMin||0)+min; }
-  const brk=f.n%4===0?15:(min>=50?10:5);
+  const brk=breakLen();
   S.focus={...f,phase:"break",start:now(),end:now()+brk*6e4,brk,hiddenAt:null};
-  notify("Oturum tamam!",`+${min>=50?18:8} Brains. ${brk} dakika mola zamanı.`);
-  toast(`Odak oturumu tamam · +${min>=50?18:8} Brains`);
+  notify("Pomodoro tamam!",`+${gain} Brains. ${brk} dakika mola, atıştırma zamanı.`);
+  toast(set?`4'lü set tamam · +${gain} Brains (set bonusu dahil)`:`Pomodoro tamam · +${gain} Brains`);
   if(isGuest()&&!S.guestNudged){ S.guestNudged=true; setTimeout(()=>toast("Misafirsin: ilerlemeni korumak için Profil'den hesap oluşturabilirsin"),3000); }
   if(t) checkAuto(t);
   checkQuests(); checkBadges(); save(); render();
 }
-function endFocus(){ S.focus=null; unlockScreen(); stopSound(); save(); render(); }
-function burnFocus(msg){ S.focus=null; unlockScreen(); stopSound(); save(); toast(msg); render(); }
+function endFocus(){ S.focus=null; unlockScreen(); save(); render(); }
+function burnFocus(msg){ S.focus=null; unlockScreen(); save(); toast(msg); render(); }
 document.addEventListener("visibilitychange",()=>{
   const f=S.focus;
   if(document.visibilityState==="hidden"){
-    if(f&&f.phase==="focus"){ f.hiddenAt=now(); notify("Kapı zorlanıyor!","30 saniye içinde dönmezsen odak oturumun yanacak."); }
+    if(f&&f.phase==="focus"){ f.hiddenAt=now(); notify("Kapı zorlanıyor!","30 saniye içinde dönmezsen pomodoron yanacak."); }
     if(S.raid||f) save();
   } else if(f&&f.phase==="focus"&&f.hiddenAt){
     const away=now()-f.hiddenAt; f.hiddenAt=null;
@@ -678,156 +680,18 @@ document.addEventListener("visibilitychange",()=>{
 function renderFocusOv(){
   const f=S.focus, ov=$("focusOv"); ov.hidden=!f; if(!f){ return; }
   const t=S.raid&&f.taskId&&S.raid.tasks.find(x=>x.id===f.taskId);
-  $("fPhase").textContent=f.phase==="focus"?`Odak · ${f.n}. oturum`:"Mola";
-  $("fTaskLbl").textContent=f.phase==="focus"?(t?t.title:(f.course||"Serbest çalışma")):"20 saniye boyunca 6 metre uzağa bak. Su iç, gerin.";
+  $("fPhase").textContent=f.phase==="focus"?`Pomodoro · ${f.n}. tur${f.n%4===0?" · set turu":""}`:`Mola · ${f.brk||breakLen()} dk`;
+  $("fTaskLbl").textContent=f.phase==="focus"?(t?t.title:(f.course||"Serbest çalışma")):"Atıştır, su iç, gerin. 20 saniye 6 metre uzağa bak.";
   $("fQuit").textContent=f.phase==="focus"?(focusQuit?"Emin misin? Oturum sayılmaz.":"Vazgeç"):"Molayı bitir";
   $("fNext").hidden=f.phase!=="break";
-  if(!$("fSound").options.length) $("fSound").innerHTML=soundOptions(S.settings.sound); $("fSound").value=S.settings.sound; $("fVol").value=S.settings.vol;
   ov.classList.toggle("brk",f.phase==="break");
 }
 $("fQuit").onclick=()=>{ const f=S.focus; if(!f) return;
   if(f.phase==="break"){ endFocus(); return; }
   if(!focusQuit){ focusQuit=true; renderFocusOv(); return; } endFocus(); toast("Oturum yarıda bırakıldı, sayılmadı."); };
 $("fNext").onclick=()=>{ const keep=S.focus; S.focus={...keep}; startFocusFrom(keep); };
-function startFocusFrom(prev){ const len=focusLen(); S.focus={phase:"focus",start:now(),end:now()+len*6e4,len,taskId:prev.taskId,course:prev.course,n:(prev.n||0)+1,hiddenAt:null}; focusQuit=false; save(); render(); lockScreen(); startSound(S.settings.sound,S.settings.vol); }
-$("fSound").onchange=e=>{ S.settings.sound=e.target.value; startSound(S.settings.sound,S.settings.vol); save(); };
-$("fVol").oninput=e=>{ S.settings.vol=+e.target.value; setVol(S.settings.vol); };
-$("fVol").onchange=()=>save();
+function startFocusFrom(prev){ const len=focusLen(); S.focus={phase:"focus",start:now(),end:now()+len*6e4,len,taskId:prev.taskId,course:prev.course,n:(prev.n||0)+1,hiddenAt:null}; focusQuit=false; save(); render(); lockScreen(); }
 
-/* ---------- ortam sesleri (tamamen tarayıcıda üretilir, dosya yok) ---------- */
-const SOUNDS=[["off","Sessiz"],["rain","Yağmur"],["storm","Fırtına"],["ocean","Okyanus"],["fire","Şömine"],["night","Orman gecesi"],["cafe","Kafe"],["library","Kütüphane"],["lofi","Lo-fi müzik"],["brown","Derin uğultu"]];
-let AC=null, SND=null;
-const NB={};
-function noise(ctx,kind){ // 4 sn stereo gürültü tamponu: white / pink / brown
-  const key=kind+ctx.sampleRate; if(NB[key]&&NB[key].ctx===ctx) return NB[key].b;
-  const n=ctx.sampleRate*4, b=ctx.createBuffer(2,n,ctx.sampleRate);
-  for(let ch=0;ch<2;ch++){ const d=b.getChannelData(ch); let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0,last=0;
-    for(let i=0;i<n;i++){ const w=Math.random()*2-1;
-      if(kind==="white") d[i]=w*0.3;
-      else if(kind==="pink"){ b0=0.99886*b0+w*0.0555179; b1=0.99332*b1+w*0.0750759; b2=0.969*b2+w*0.153852; b3=0.8665*b3+w*0.3104856; b4=0.55*b4+w*0.5329522; b5=-0.7616*b5-w*0.016898; d[i]=(b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.11; b6=w*0.115926; }
-      else { last=(last+0.02*w)/1.02; d[i]=last*3.5; } }
-    // döngü dikişini yumuşat
-    const f=Math.floor(ctx.sampleRate*0.05); for(let i=0;i<f;i++){ const k=i/f; d[i]=d[i]*k+d[n-f+i]*(1-k); } }
-  NB[key]={ctx,b}; return b;
-}
-function bed(ctx,out,kind,{lp=20000,hp=20,gain=1,q=0.7,lfo=0,lfoDepth=0}={}){
-  const s=ctx.createBufferSource(); s.buffer=noise(ctx,kind); s.loop=true; s.loopStart=0.05; s.loopEnd=s.buffer.duration;
-  const h=ctx.createBiquadFilter(); h.type="highpass"; h.frequency.value=hp;
-  const l=ctx.createBiquadFilter(); l.type="lowpass"; l.frequency.value=lp; l.Q.value=q;
-  const g=ctx.createGain(); g.gain.value=gain;
-  s.connect(h); h.connect(l); l.connect(g); g.connect(out); s.start(ctx.currentTime, Math.random()*3);
-  const nodes=[s];
-  if(lfo){ const o=ctx.createOscillator(), og=ctx.createGain(); o.frequency.value=lfo; og.gain.value=gain*lfoDepth; o.connect(og); og.connect(g.gain); o.start(); nodes.push(o); }
-  return {nodes,g,l};
-}
-function burst(ctx,out,t,{dur=0.02,f=3000,q=1,gain=0.2,type="bandpass",pan=0,src="white"}){
-  const s=ctx.createBufferSource(); s.buffer=noise(ctx,src);
-  const bf=ctx.createBiquadFilter(); bf.type=type; bf.frequency.value=f; bf.Q.value=q;
-  const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(gain,t+Math.min(0.004,dur/4)); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-  let node=g; if(ctx.createStereoPanner){ const p=ctx.createStereoPanner(); p.pan.value=pan; g.connect(p); node=p; }
-  s.connect(bf); bf.connect(g); node.connect(out); s.start(t,Math.random()*3); s.stop(t+dur+0.05);
-}
-function tone(ctx,out,t,{f=440,dur=1,gain=0.1,type="sine",attack=0.02,lp=0,pan=0,detune=0}){
-  const o=ctx.createOscillator(); o.type=type; o.frequency.value=f; o.detune.value=detune;
-  const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(gain,t+attack); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-  let last=g; o.connect(g);
-  if(lp){ const f2=ctx.createBiquadFilter(); f2.type="lowpass"; f2.frequency.value=lp; g.connect(f2); last=f2; }
-  if(ctx.createStereoPanner){ const p=ctx.createStereoPanner(); p.pan.value=pan; last.connect(p); last=p; }
-  last.connect(out); o.start(t); o.stop(t+dur+0.05);
-}
-const rnd2=(a,b)=>a+Math.random()*(b-a);
-const LEVEL={"storm": 0.6, "ocean": 0.7, "night": 2.0, "cafe": 1.4, "lofi": 5.5, "brown": 0.6, "rain": 0.9, "fire": 0.85, "library": 1.1};
-/* her ses: sürekli katmanlar + zamanlanmış olaylar (events: ileriye dönük planlanır) */
-const SCAPES={
-  rain:{ beds:c=>[["pink",{hp:300,lp:7000,gain:0.55}],["brown",{lp:400,gain:0.35}]],
-    ev:(ctx,out,t,span)=>{ for(let x=t;x<t+span;x+=rnd2(0.02,0.09)) burst(ctx,out,x,{dur:rnd2(0.008,0.03),f:rnd2(2500,7000),q:rnd2(2,6),gain:rnd2(0.02,0.08),pan:rnd2(-0.9,0.9)}); } },
-  storm:{ beds:c=>[["pink",{hp:200,lp:5000,gain:0.7}],["brown",{lp:300,gain:0.5,lfo:0.07,lfoDepth:0.6}]],
-    ev:(ctx,out,t,span)=>{ for(let x=t;x<t+span;x+=rnd2(0.015,0.06)) burst(ctx,out,x,{dur:rnd2(0.008,0.03),f:rnd2(2000,6000),q:3,gain:rnd2(0.03,0.09),pan:rnd2(-1,1)});
-      if(Math.random()<span/14){ const x=t+rnd2(0,span); burst(ctx,out,x,{dur:rnd2(3,6),f:rnd2(60,120),q:0.6,gain:0.9,type:"lowpass",src:"brown"}); burst(ctx,out,x+0.05,{dur:1.2,f:800,q:0.5,gain:0.25,type:"lowpass",src:"brown"}); } } },
-  ocean:{ beds:c=>[["pink",{hp:100,lp:2500,gain:0.6,lfo:1/9,lfoDepth:0.85}],["brown",{lp:350,gain:0.4,lfo:1/9,lfoDepth:0.5}]], ev:null },
-  fire:{ beds:c=>[["brown",{lp:600,gain:0.6,lfo:0.3,lfoDepth:0.15}],["pink",{hp:1500,lp:5000,gain:0.05}]],
-    ev:(ctx,out,t,span)=>{ let x=t; while(x<t+span){ x+=rnd2(0.05,0.5); const n=Math.random()<0.3?Math.floor(rnd2(2,6)):1;
-      for(let i=0;i<n;i++) burst(ctx,out,x+i*rnd2(0.01,0.04),{dur:rnd2(0.002,0.012),f:rnd2(1500,6000),q:rnd2(1,4),gain:rnd2(0.06,0.3),pan:rnd2(-0.5,0.5)});
-      if(Math.random()<0.04) burst(ctx,out,x,{dur:0.05,f:rnd2(400,900),q:2,gain:0.35,pan:rnd2(-0.4,0.4)}); } } },
-  night:{ beds:c=>[["pink",{hp:150,lp:1200,gain:0.25,lfo:0.05,lfoDepth:0.5}]],
-    ev:(ctx,out,t,span)=>{ [[4600,-0.6],[4950,0.5],[4300,0.1]].forEach(([f,pan])=>{ let x=t+rnd2(0,0.6); while(x<t+span){ for(let k=0;k<3;k++) tone(ctx,out,x+k*0.045,{f:f+rnd2(-30,30),dur:0.03,gain:0.025,attack:0.004,pan}); x+=rnd2(0.7,1.6); } });
-      if(Math.random()<span/20){ const x=t+rnd2(0,span); tone(ctx,out,x,{f:420,dur:0.35,gain:0.04,type:"sine",attack:0.05,pan:rnd2(-0.7,0.7)}); tone(ctx,out,x+0.5,{f:380,dur:0.5,gain:0.035,attack:0.05,pan:rnd2(-0.7,0.7)}); } } },
-  cafe:{ beds:c=>[["pink",{hp:250,lp:1800,gain:0.35,lfo:0.4,lfoDepth:0.25}],["brown",{lp:300,gain:0.25}]],
-    ev:(ctx,out,t,span)=>{ let x=t; while(x<t+span){ x+=rnd2(0.15,0.6); burst(ctx,out,x,{dur:rnd2(0.15,0.4),f:rnd2(350,1100),q:rnd2(3,7),gain:rnd2(0.02,0.06),pan:rnd2(-0.8,0.8),src:"pink"}); }
-      if(Math.random()<span/6){ const x=t+rnd2(0,span), f=rnd2(2200,3600); tone(ctx,out,x,{f,dur:0.6,gain:0.03,attack:0.002,pan:rnd2(-0.8,0.8)}); tone(ctx,out,x,{f:f*2.76,dur:0.3,gain:0.012,attack:0.002}); } } },
-  library:{ beds:c=>[["brown",{lp:220,gain:0.45}],["pink",{hp:200,lp:900,gain:0.06}]],
-    ev:(ctx,out,t,span)=>{ if(Math.random()<span/18){ const x=t+rnd2(0,span); burst(ctx,out,x,{dur:0.45,f:2500,q:0.6,gain:0.05,type:"bandpass",pan:rnd2(-0.6,0.6),src:"pink"}); }
-      if(Math.random()<span/9){ const x=t+rnd2(0,span); for(let i=0;i<6;i++) burst(ctx,out,x+i*0.09,{dur:0.05,f:4000,q:1.5,gain:0.012,pan:0.3}); } } },
-  brown:{ beds:c=>[["brown",{lp:500,gain:0.8}]], ev:null },
-  lofi:{ beds:c=>[["pink",{hp:3000,lp:9000,gain:0.03}]],
-    ev:(ctx,out,t,span,st)=>{ // 72 BPM, Am7 - Dm9 - G7 - Cmaj7 döngüsü, yumuşak elektrik piyano + bas + vinil cızırtısı
-      const beat=60/72, bar=beat*4, CH=[[57,60,64,67],[50,57,60,64],[55,59,62,65],[48,55,59,64]], BASS=[45,38,43,36];
-      const mf=m=>440*Math.pow(2,(m-69)/12);
-      if(st.next==null) st.next=t, st.i=0;
-      while(st.next<t+span){ const x=st.next, ci=st.i%4, ch=CH[ci];
-        ch.forEach((m,k)=>{ tone(ctx,out,x+k*0.025,{f:mf(m+12),dur:bar*0.95,gain:0.035,type:"triangle",attack:0.03,lp:1800,pan:(k-1.5)*0.25,detune:rnd2(-6,6)}); tone(ctx,out,x+k*0.025,{f:mf(m+24),dur:bar*0.4,gain:0.008,attack:0.01,lp:2500}); });
-        tone(ctx,out,x,{f:mf(BASS[ci]),dur:beat*1.8,gain:0.09,attack:0.01,lp:400}); tone(ctx,out,x+beat*2.5,{f:mf(BASS[ci]+7),dur:beat*1.2,gain:0.06,attack:0.01,lp:400});
-        for(let b=0;b<4;b++){ const bx=x+b*beat; if(b%2===0) tone(ctx,out,bx,{f:60,dur:0.25,gain:0.12,attack:0.003,lp:200}); else burst(ctx,out,bx,{dur:0.12,f:1800,q:0.8,gain:0.05,src:"pink"});
-          burst(ctx,out,bx+beat/2+0.02,{dur:0.03,f:8000,q:1,gain:0.015,type:"highpass"}); }
-        if(Math.random()<0.5){ const mel=ch[Math.floor(Math.random()*4)]+24; tone(ctx,out,x+beat*rnd2(1,3),{f:mf(mel),dur:beat*1.5,gain:0.018,attack:0.02,lp:2200,pan:0.3}); }
-        st.next+=bar; st.i++; }
-      for(let x=t;x<t+span;x+=rnd2(0.1,0.7)) burst(ctx,out,x,{dur:0.004,f:rnd2(1500,4000),q:1,gain:rnd2(0.01,0.04)}); } },
-};
-function buildScape(ctx,kind,vol){
-  const sc=SCAPES[kind]; if(!sc) return null; vol*=LEVEL[kind]||1;
-  const master=ctx.createGain(); master.gain.value=0; master.connect(ctx.destination); master.lvl=LEVEL[kind]||1;
-  master.gain.setValueAtTime(0,ctx.currentTime); master.gain.linearRampToValueAtTime(vol,ctx.currentTime+1.5);
-  const comp=ctx.createDynamicsCompressor(); comp.threshold.value=-18; comp.ratio.value=3; comp.connect(master);
-  const nodes=[]; sc.beds().forEach(([k,o])=>{ const b=bed(ctx,comp,k,o); nodes.push(...b.nodes); });
-  const st={}; const plan=(span)=>{ if(sc.ev) sc.ev(ctx,comp,Math.max(ctx.currentTime,st.until||ctx.currentTime),span,st); st.until=(st.until||ctx.currentTime)+span; };
-  return {master,nodes,st,plan,sc};
-}
-/* Oynatma: her ses bir kez 40 sn'lik dikişsiz döngü olarak önceden üretilir, sonra tek kaynak olarak çalınır.
-   Canlı yüzlerce düğüm yerine tek tampon: telefonda takılmaz, sekme yavaşlasa da kesilmez. */
-const LOOP_LEN=40, LOOP_XF=3, LOOP_SR=32000, RENDERED={};
-let sndToken=0, unlockEl=null;
-async function renderLoop(kind){
-  if(RENDERED[kind]) return RENDERED[kind];
-  const OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext; if(!OAC) throw new Error("no offline");
-  const total=LOOP_LEN+LOOP_XF, ctx=new OAC(2,Math.ceil(LOOP_SR*total),LOOP_SR);
-  const sc=buildScape(ctx,kind,1); sc.master.gain.cancelScheduledValues(0); sc.master.gain.value=1/(LEVEL[kind]||1);
-  sc.st.until=0; sc.plan(total);
-  const buf=await ctx.startRendering();
-  const N=Math.round(LOOP_SR*LOOP_LEN), X=Math.round(LOOP_SR*LOOP_XF);
-  const out=[]; let sum=0, pk=0;
-  for(let ch=0;ch<2;ch++){ const src=buf.getChannelData(ch), d=new Float32Array(N);
-    for(let i=0;i<N;i++){ let v=src[i]; if(i<X){ const k=i/X; v=src[i]*Math.sin(k*Math.PI/2)+src[i+N]*Math.cos(k*Math.PI/2); } d[i]=v; const a=Math.abs(v); if(a>pk) pk=a; sum+=v*v; }
-    out.push(d); }
-  const rms=Math.sqrt(sum/(2*N))||1e-4, g=Math.min(0.08/rms,0.92/(pk||1));
-  out.forEach(d=>{ for(let i=0;i<d.length;i++) d[i]*=g; });
-  return (RENDERED[kind]={data:out,sr:LOOP_SR,len:N});
-}
-function unlockIOS(){ // iPhone sessiz modunda bile Web Audio duyulsun diye sessiz bir medya öğesi çal
-  try{ if(!unlockEl){ unlockEl=document.createElement("audio"); unlockEl.setAttribute("playsinline",""); unlockEl.loop=true;
-      unlockEl.src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"; }
-    const p=unlockEl.play(); if(p&&p.catch) p.catch(()=>{}); }catch(e){}
-}
-function startSound(kind,vol){
-  stopSound(); if(!kind||kind==="off") return;
-  try{ AC=AC||new (window.AudioContext||window.webkitAudioContext)(); if(AC.state!=="running") AC.resume(); }catch(e){ return; }
-  unlockIOS();
-  const token=++sndToken, master=AC.createGain(); master.gain.value=0; master.connect(AC.destination);
-  SND={kind,master,src:null,vol,loading:true};
-  const play=r=>{ if(token!==sndToken||!SND) return;
-    const b=AC.createBuffer(2,r.len,r.sr); r.data.forEach((d,ch)=>{ if(b.copyToChannel) b.copyToChannel(d,ch); else b.getChannelData(ch).set(d); });
-    const src=AC.createBufferSource(); src.buffer=b; src.loop=true; src.connect(master); src.start(AC.currentTime+0.02);
-    master.gain.setValueAtTime(0,AC.currentTime); master.gain.linearRampToValueAtTime(SND.vol,AC.currentTime+1.2);
-    SND.src=src; SND.loading=false; };
-  if(RENDERED[kind]) play(RENDERED[kind]);
-  else { toast("Ses hazırlanıyor…");
-    renderLoop(kind).then(play).catch(()=>{ if(token===sndToken) toast("Bu cihaz ortam sesini çalamıyor"); }); }
-}
-function setVol(v){ if(SND&&AC){ SND.vol=v; SND.master.gain.cancelScheduledValues(AC.currentTime); SND.master.gain.setTargetAtTime(v,AC.currentTime,0.1); } }
-function stopSound(){ sndToken++; if(SND){ const s=SND; SND=null;
-  try{ s.master.gain.cancelScheduledValues(AC.currentTime); s.master.gain.setTargetAtTime(0,AC.currentTime,0.15); }catch(e){}
-  setTimeout(()=>{ try{ s.src&&s.src.stop(); }catch(e){} try{s.master.disconnect()}catch(e){} },700); }
-  try{ unlockEl&&unlockEl.pause(); }catch(e){} }
-const soundOptions=sel=>SOUNDS.map(([v,l])=>`<option value="${v}"${sel===v?" selected":""}>${l}</option>`).join("");
 
 /* ---------- bildirimler ---------- */
 const notifOK=()=>"Notification" in window&&Notification.permission==="granted";
@@ -888,14 +752,14 @@ function reviewView(){
 
 /* ---------- günlük görevler ---------- */
 const QUESTS=[
-  {id:"f1",t:"1 odak oturumu tamamla",n:1,v:()=>todayLogs("focusLog").length},
-  {id:"f2",t:"2 odak oturumu tamamla",n:2,v:()=>todayLogs("focusLog").length},
+  {id:"f1",t:"1 pomodoro tamamla",n:1,v:()=>todayLogs("focusLog").length},
+  {id:"f2",t:"2 pomodoro tamamla",n:2,v:()=>todayLogs("focusLog").length},
   {id:"m60",t:"Toplam 60 dakika odaklan",n:60,v:()=>todayLogs("focusLog").reduce((a,x)=>a+x.min,0)},
   {id:"r5",t:"5 hafıza kartı tekrar et",n:5,v:()=>todayLogs("reviewLog").length},
   {id:"c3",t:"3 yeni hafıza kartı yaz",n:3,v:()=>S.deck.filter(c=>dayKey(c.created)===dayKey()).length},
   {id:"w1",t:"Bir baskını kazan",n:1,v:()=>S.lastWin&&S.lastWin.kind==="win"&&dayKey(S.lastWin.at)===dayKey()?1:0},
-  {id:"am",t:"Öğlen 12'den önce bir odak oturumu bitir",n:1,v:()=>todayLogs("focusLog").filter(x=>new Date(x.at).getHours()<12).length},
-  {id:"tf",t:"Bir görevi odak moduyla bitir",n:1,v:()=>todayLogs("taskLog").filter(x=>x.viaFocus).length},
+  {id:"am",t:"Öğlen 12'den önce bir pomodoro bitir",n:1,v:()=>todayLogs("focusLog").filter(x=>new Date(x.at).getHours()<12).length},
+  {id:"tf",t:"Bir görevi pomodoroyla bitir",n:1,v:()=>todayLogs("taskLog").filter(x=>x.viaFocus).length},
 ];
 function todaysQuests(){ const k=dayKey(); let h=0; for(const ch of k) h=(h*31+ch.charCodeAt(0))>>>0;
   const pool=QUESTS.slice(), out=[]; while(out.length<3){ const i=h%pool.length; out.push(pool.splice(i,1)[0]); h=Math.floor(h/7)+13; } return out; }
@@ -923,11 +787,11 @@ function resolvePledge(){
 }
 function pledgeBox(){
   const wk=weekKey(), p=S.pledge&&S.pledge.week===wk?S.pledge:null, last=S.pledge&&S.pledge.resolved?S.pledge:null;
-  if(!p) return frame(`<div class="tag">Haftalık söz</div><h2>Bu hafta kaç odak oturumu yapacaksın?</h2>
+  if(!p) return frame(`<div class="tag">Haftalık söz</div><h2>Bu hafta kaç pomodoro yapacaksın?</h2>
     <p class="note">Sözünü tutarsan oturum başına 6 Brains kazanırsın. Tutamazsan barikatın bir kademe hasar alır.${last?` Geçen hafta: ${last.got}/${last.target} ${last.kept?"(tuttun)":"(tutamadın)"}.`:""}</p>
     <div class="pills">${[5,10,15,20].map(n=>`<button class="pill" data-pledge="${n}">${n} oturum</button>`).join("")}</div>`);
   const got=weekSessions(wk);
-  return frame(`<div class="tag">Haftalık söz</div><h2>${got}/${p.target} odak oturumu</h2>
+  return frame(`<div class="tag">Haftalık söz</div><h2>${got}/${p.target} pomodoro</h2>
     <div class="prog"><i style="width:${Math.min(100,Math.round(got/p.target*100))}%"></i></div>
     <p class="note">${got>=p.target?`Sözünü tuttun. Hafta bitince +${p.target*6} Brains gelecek.`:`Pazar gece yarısına kadar ${p.target-got} oturum daha.`}</p>`);
 }
@@ -950,13 +814,13 @@ function examsBox(){
 /* ---------- başarımlar ---------- */
 const BADGES=[
   ["first_raid","İlk Kan","İlk baskınını kazan",20,()=>S.survived>=1],
-  ["first_focus","Odak Çırağı","İlk odak oturumunu bitir",20,()=>S.tot.focus>=1],
-  ["focus10","Odak Ustası","10 odak oturumu tamamla",50,()=>S.tot.focus>=10],
-  ["focus50","Zen Hayatta Kalan","50 odak oturumu tamamla",150,()=>S.tot.focus>=50],
+  ["first_focus","Odak Çırağı","İlk pomodoroyu bitir",20,()=>S.tot.focus>=1],
+  ["focus10","Odak Ustası","10 pomodoro tamamla",50,()=>S.tot.focus>=10],
+  ["focus50","Zen Hayatta Kalan","50 pomodoro tamamla",150,()=>S.tot.focus>=50],
   ["streak3","Üç Gün Ayakta","3 günlük seri yap",30,()=>streak()>=3],
   ["streak7","Bir Hafta Hayatta","7 günlük seri yap",70,()=>streak()>=7],
   ["streak30","Ayın Hayatta Kalanı","30 günlük seri yap",300,()=>streak()>=30],
-  ["early","Erkenci","Saat 10'dan önce bir odak oturumu bitir",30,()=>S.focusLog.some(x=>new Date(x.at).getHours()<10)],
+  ["early","Erkenci","Saat 10'dan önce bir pomodoro bitir",30,()=>S.focusLog.some(x=>new Date(x.at).getHours()<10)],
   ["weekend","Hafta Sonu Savaşçısı","Cumartesi ya da pazar baskın kazan",30,()=>!!S.badges.weekendFlag],
   ["clean5","Dokunulmaz","Enfekte olmadan art arda 5 baskın kazan",80,()=>(S.cleanStreak||0)>=5],
   ["review50","Hafıza Bekçisi","50 kart tekrarı yap",50,()=>S.tot.reviews>=50],
@@ -1032,18 +896,18 @@ function streakBox(){
   const dots=Array.from({length:7},(_,i)=>{ const d=new Date(); d.setDate(d.getDate()-6+i); const k=dayKey(d.getTime()); return `<i class="${set.has(k)?"on":""}" title="${k}"></i>`; }).join("");
   return frame(`<div class="tag">Seri</div><div class="streak"><b>${st}</b><span>günlük seri<br><small class="q">Sonraki hedef: ${next} gün</small></span></div>
     <div class="sdots">${dots}</div>
-    <p class="note">Bir odak oturumu bitirdiğin, baskın kazandığın ya da 5 kart tekrar ettiğin her gün seriye sayılır. Seri büyüdükçe baskın ödülün artar (günde +5, en fazla +30).</p>`);
+    <p class="note">Bir pomodoro bitirdiğin, baskın kazandığın ya da 5 kart tekrar ettiğin her gün seriye sayılır. Seri büyüdükçe baskın ödülün artar (günde +5, en fazla +30).</p>`);
 }
 function reportBox(){
   const w=weekStats(), mx=Math.max(30,...w.days);
   return frame(`<div class="tag">Haftalık rapor</div>
     <div class="report"><div class="rnum"><b>${hm(w.min)}</b><span>odak süresi</span></div><div class="rnum"><b>${w.sessions}</b><span>oturum</span></div><div class="rnum"><b>${w.reviews}</b><span>kart tekrarı</span></div></div>
     <div class="bars">${w.days.map((m,i)=>`<div class="bar"><i style="height:${Math.round(m/mx*100)}%"></i><span>${TRDAYS[i]}</span><small>${m||""}</small></div>`).join("")}</div>
-    <p class="note">${w.best?`En verimli günün: ${w.best}.`:"Bu hafta henüz odak oturumu yok."}</p>
+    <p class="note">${w.best?`En verimli günün: ${w.best}.`:"Bu hafta henüz pomodoro yok."}</p>
     <div class="btns" style="justify-content:flex-start"><button class="btn sm" id="repStory">Story görseli</button><button class="btn sm plum" id="repCopy">Metni kopyala</button></div>`,"card");
 }
 function courseBox(){
-  const wk=weekKey(), cs=courseList(); if(!cs.length) return frame(`<div class="tag">Ders istatistikleri</div><p class="note">Görevlere ve odak oturumlarına ders yazdıkça burada hangi derse ne kadar çalıştığını göreceksin.</p>`);
+  const wk=weekKey(), cs=courseList(); if(!cs.length) return frame(`<div class="tag">Ders istatistikleri</div><p class="note">Görevlere ve pomodorolara ders yazdıkça burada hangi derse ne kadar çalıştığını göreceksin.</p>`);
   const rows=cs.map(c=>({c,w:S.focusLog.filter(x=>x.course===c&&weekKey(x.at)===wk).reduce((a,x)=>a+x.min,0),all:S.focusLog.filter(x=>x.course===c).reduce((a,x)=>a+x.min,0),
     cards:S.deck.filter(k=>k.course===c).length,ex:S.exams.filter(e=>e.course===c&&daysTo(e.date)>=0).sort((a,b)=>a.date.localeCompare(b.date))[0]})).sort((a,b)=>b.w-a.w);
   const mx=Math.max(30,...rows.map(r=>r.w));
@@ -1104,22 +968,22 @@ function renderProfile(){
 function focusTabView(){
   const tasks=S.raid?S.raid.tasks.filter(t=>!t.done):[], sel=focusTask||(tasks.find(t=>t.unit==="dakika")||tasks[0]||{}).id||"";
   const today=todayLogs("focusLog"), tmin=today.reduce((a,x)=>a+x.min,0);
-  return frame(`<div><div class="tag">Odak modu</div><h2>Sığınağa kapan, sürüyü dışarıda bırak</h2></div>
-    <div class="report"><div class="rnum"><b>${today.length}</b><span>bugünkü oturum</span></div><div class="rnum"><b>${hm(tmin)}</b><span>bugün</span></div><div class="rnum"><b>${streak()}</b><span>günlük seri</span></div></div>
+  return frame(`<div><div class="tag">Pomodoro</div><h2>Çalış, mola ver, Brains topla</h2></div>
+    <div class="report"><div class="rnum"><b>${today.length}</b><span>bugünkü pomodoro</span></div><div class="rnum"><b>${hm(tmin)}</b><span>bugün</span></div><div class="rnum"><b>${streak()}</b><span>günlük seri</span></div></div>
     <label class="note" for="fTask">Bu oturum hangi görev için?</label>
     <select id="fTask"><option value="">Serbest çalışma (görevsiz)</option>${tasks.map(t=>`<option value="${t.id}"${t.id===sel?" selected":""}>${esc(t.title)}${t.unit==="dakika"?` · ${t.focusMin||0}/${target(t)} dk`:""}</option>`).join("")}</select>
     <label class="note" for="fCourse">Ders</label><input id="fCourse" list="courseList" placeholder="Örn. Veri Yapıları" value="${esc(((tasks.find(t=>t.id===sel)||{}).course)||"")}">
-    <div class="pills"><span class="tag" style="margin-right:4px">Süre</span>
-      <button class="pill${focusLen()===25?" on":""}" data-len="25">25 dk + 5 mola</button><button class="pill${focusLen()===50?" on":""}" data-len="50">50 dk + 10 mola</button></div>
-    <div class="pills"><label class="tag" for="fSound2" style="margin-right:4px">Ortam sesi</label>
-      <select id="fSound2" style="width:auto">${soundOptions(S.settings.sound)}</select><button class="pill" id="fPrev">${SND&&!S.focus?"Durdur":"Dinle"}</button></div>
-    <button class="btn" id="fStart">Odak oturumunu başlat</button>
-    <div class="explain"><b>Kurallar:</b> Oturum boyunca bu sayfada kal. Sekmeden ya da uygulamadan çıkarsan zombiler kapıyı zorlar; 30 saniye içinde dönmezsen oturum yanar. Biten her 25 dakika +8 Brains, 50 dakika +18 Brains. Görevine bağladığın oturumlar o görevi doğrular ve tam ödül alırsın. Dört oturumdan sonra 15 dakika uzun mola.</div>
+    <div class="pills"><span class="tag" style="margin-right:4px">Çalışma</span>
+      ${POMO.map(m=>`<button class="pill${focusLen()===m?" on":""}" data-len="${m}">${m} dk · +${pomoBrains(m)}</button>`).join("")}</div>
+    <div class="pills"><span class="tag" style="margin-right:4px">Mola</span>
+      ${BREAKS.map(m=>`<button class="pill${breakLen()===m?" on":""}" data-brk="${m}">${m} dk</button>`).join("")}</div>
+    <button class="btn" id="fStart">Pomodoro'yu başlat · ${focusLen()} dk</button>
+    <div class="explain"><b>Kurallar:</b> Çalışırken bu sayfada kal. Sekmeden ya da uygulamadan çıkarsan zombiler kapıyı zorlar; 30 saniye içinde dönmezsen pomodoro yanar. Biten her pomodoro Brains getirir: 25 dk +${pomoBrains(25)}, 30 dk +${pomoBrains(30)}, 40 dk +${pomoBrains(40)}. Arka arkaya 4 pomodoro bitirirsen +${SET_BONUS} set bonusu. Molada sığınağın mutfağına geçip atıştırırsın. Görevine bağladığın pomodorolar o görevi doğrular ve tam ödül alırsın.</div>
     ${datalist()}`);
 }
 
 /* ---------- ana render ---------- */
-const TABS=[["tasks","Görevler"],["focus","Odak"],["review","Tekrar"],["cards","Kartlar"],["shelter","Sığınak"],["profile","Profil"]];
+const TABS=[["tasks","Görevler"],["focus","Pomodoro"],["review","Tekrar"],["cards","Kartlar"],["shelter","Sığınak"],["profile","Profil"]];
 function render(){
   const chip=$("statusChip"); chip.className="chip "+S.status; chip.textContent={alive:"HAYATTA",infected:"ENFEKTE",dead:"ÖLDÜ"}[S.status];
   $("brainsChip").textContent=S.brains+" BRAINS";
@@ -1173,7 +1037,7 @@ function devAct0(a){
   else if(a==="decay1"||a==="decay3"){ const n=a==="decay1"?1:3; S.lastActive=S.lastDecayCheck=now()-n*DAY-6e4; applyDecay(); toast(S.decayMsg||"Çürüyecek bir şey yoktu. Önce sığınağı geliştir."); }
   else if(a==="card"||a==="legend"){ dropCard(a==="legend"?"l":null,true); }
   else if(a==="recharge"){ Object.values(S.cards||{}).forEach(o=>o.used=false); toast("Bütün kart güçleri yenilendi"); }
-  else if(a==="focusEnd"){ if(!S.focus) return toast("Önce bir odak oturumu başlat."); S.focus.end=now(); sheetOpen=false; tick(); return; }
+  else if(a==="focusEnd"){ if(!S.focus) return toast("Önce bir pomodoro başlat."); S.focus.end=now(); sheetOpen=false; tick(); return; }
   else if(a==="deck"){ [["Matematik","x² fonksiyonunun türevi?","2x"],["Matematik","sin(x)'in türevi?","cos(x)"],["Veri Yapıları","Yığın (stack) hangi sırayla çalışır?","LIFO: son giren ilk çıkar"],["OOP","Kapsülleme nedir?","Verinin sınıf içinde gizlenip metotlarla erişilmesi"],["OOP","Python'da yapıcı metot?","__init__"]]
       .forEach(([c,f,b],i)=>S.deck.push({id:"k"+now()+i,front:f,back:b,course:addCourse(c),box:0,due:now(),created:now()})); toast("5 örnek kart eklendi"); }
   else if(a==="exam"){ const d=new Date(now()+3*DAY); S.exams.push({id:"e"+now(),course:addCourse("Veri Yapıları"),date:dayKey(d.getTime()),type:"Vize",bossWon:false}); toast("3 gün sonrasına sınav eklendi, Final Bossu açıldı"); }
@@ -1184,10 +1048,10 @@ function devAct0(a){
 document.querySelectorAll("[data-dev]").forEach(b=>b.onclick=()=>devAct(b.dataset.dev));
 
 function openSheet(t){ tab=t||"tasks"; sheetOpen=true; render(); $("sheet").scrollTop=0; }
-function closeSheet(){ sheetOpen=false; rev=null; if(!S.focus) stopSound(); render(); }
+function closeSheet(){ sheetOpen=false; rev=null; render(); }
 function renderDock(){
   const d=$("dockBody"); let h="";
-  const fbtn=`<button class="btn plum" id="dockFocus" style="flex:0 1 auto">Odak</button><button class="btn plum" id="dockShelter" style="flex:0 1 auto">Menü</button>`;
+  const fbtn=`<button class="btn plum" id="dockFocus" style="flex:0 1 auto">Pomodoro</button><button class="btn plum" id="dockShelter" style="flex:0 1 auto">Menü</button>`;
   if(S.status==="dead") h=deathView();
   else if(S.raid){
     const r=S.raid, inf=S.status==="infected", done=r.tasks.filter(t=>t.done).length;
@@ -1229,7 +1093,7 @@ function setupView(){
     <button class="ghost" id="addRow">+ Görev ekle</button>
     <div class="pills"><span class="tag" style="margin-right:4px">Süre</span>${opts}</div>
     <div class="pills"><label class="note" for="dtime">ya da bitiş saatini kendin seç:</label><input type="time" id="dtime" value="${hhmm(deadlineMs)}"><span class="note">Bitiş ${hhmm(deadlineMs)}</span></div>
-    <div class="explain"><b>Nasıl bitirilir?</b> "dakika" görevleri odak modunda, "kart" görevleri hafıza kartı tekrarıyla kendiliğinden dolar. Diğerlerinde odak modunda çalışıp "Bitirdim" dersen tam ödül (+${BRAINS_PER_TASK}), sadece özet yazarsan yarım ödül (+${BRAINS_HALF}) alırsın.
+    <div class="explain"><b>Nasıl bitirilir?</b> "dakika" görevleri pomodoroda, "kart" görevleri hafıza kartı tekrarıyla kendiliğinden dolar. Diğerlerinde pomodoroda çalışıp "Bitirdim" dersen tam ödül (+${BRAINS_PER_TASK}), sadece özet yazarsan yarım ödül (+${BRAINS_HALF}) alırsın.
       <br><b>Zombi vergisi:</b> Her göreve %${Math.round(taxPct()*100)} ekstra eklenir: "15 soru" dersen hedefin ${15+taxFor(15)} soru olur. Taret geliştirdikçe azalır.</div>
     ${graceMin()?`<p class="note">Barikatın sayesinde süre bitince ${graceMin()} dk ek süren var.</p>`:""}
     <div class="btns" style="justify-content:flex-start">${boss?`<button class="link" id="bossCancel">Normal baskına dön</button>`:""}<button class="btn${boss?" red":""}" id="go" style="flex:1">${boss?"Bossla yüzleş":"Baskını başlat"}</button></div>${datalist()}`);
@@ -1246,7 +1110,7 @@ function raidView(){
         ${t.done?`<span class="ok">${t.half?"YARIM":"ONAYLI"}</span>`:""}</div>
       ${auto&&!t.done?`<div class="prog"><i style="width:${Math.round(f*100)}%"></i></div>`:""}
       ${t.verdict?`<div class="verdict">${esc(t.verdict)}</div>`:""}
-      ${t.done?"":`<div class="acts">${t.unit==="kart"?`<button class="btn sm" data-goreview="1">Kartları tekrar et</button>`:`<button class="btn sm" data-focus="${t.id}">Odakla çalış</button>`}
+      ${t.done?"":`<div class="acts">${t.unit==="kart"?`<button class="btn sm" data-goreview="1">Kartları tekrar et</button>`:`<button class="btn sm" data-focus="${t.id}">Pomodoro yap</button>`}
         ${t.unit==="dakika"||t.unit==="kart"?"":`<button class="btn sm plum" data-done="${t.id}">Bitirdim</button>`}</div>`}
     </li>`}).join("");
   const done=r.tasks.filter(t=>t.done).length;
@@ -1308,9 +1172,7 @@ function bind(){
 function bindFocusTab(){
   const el=$("focusTab");
   el.querySelectorAll("[data-len]").forEach(b=>b.onclick=()=>{ S.settings.len=+b.dataset.len; save(); render(); });
-  const fs=$("fSound2"); if(fs) fs.onchange=()=>{ S.settings.sound=fs.value; save(); if(SND&&!S.focus) startSound(fs.value,S.settings.vol); };
-  const warm=()=>{ const k=S.settings.sound; if(k&&k!=="off"&&!RENDERED[k]) setTimeout(()=>renderLoop(k).catch(()=>{}),300); }; warm(); if(fs) fs.addEventListener("change",warm);
-  const fp=$("fPrev"); if(fp) fp.onclick=()=>{ if(SND){ stopSound(); fp.textContent="Dinle"; } else if(S.settings.sound!=="off"){ startSound(S.settings.sound,S.settings.vol); fp.textContent="Durdur"; } else toast("Önce bir ses seç"); };
+  el.querySelectorAll("[data-brk]").forEach(b=>b.onclick=()=>{ S.settings.brk=+b.dataset.brk; save(); render(); });
   const ft=$("fTask"); if(ft) ft.onchange=()=>{ focusTask=ft.value; const t=S.raid&&S.raid.tasks.find(x=>x.id===ft.value); if(t&&t.course) $("fCourse").value=t.course; };
   $("fStart").onclick=startFocus;
 }
@@ -1328,7 +1190,7 @@ let toastT, toastQ=[]; function toast(msg){const t=$("toast");t.textContent=msg;
 let threat=0.05, lastWeek=null;
 function tick(){
   const r=S.raid, f=S.focus;
-  if(f&&!f.done&&now()>=f.end){ if(f.phase==="focus") completeFocus(); else { notify("Mola bitti","Yeni bir odak oturumuna hazır mısın?"); f.done=true; } }
+  if(f&&!f.done&&now()>=f.end){ if(f.phase==="focus") completeFocus(); else { notify("Mola bitti","Yeni bir pomodoroya hazır mısın?"); f.done=true; } }
   if(f){ const left=f.end-now(), tot=(f.phase==="focus"?f.len:f.brk)*6e4; $("fTime").textContent=f.done?"0:00":fmt(left);
     const p=Math.max(0,Math.min(1,1-left/tot)); $("fRing").style.strokeDashoffset=String(Math.round(565*(1-p)));
     $("fNext").hidden=f.phase!=="break"; if(f.done&&f.phase==="break") $("fPhase").textContent="Mola bitti"; }
@@ -1378,7 +1240,7 @@ function hero(c,x,y,s,h,pose,t){
   if(f){ c.fillStyle=hair; c.beginPath(); c.ellipse(0,-23,5.2,7,0,0,7); c.fill(); c.beginPath(); c.ellipse(-4.5,-19,2.2,4.5,0.4,0,7); c.fill(); }
   // bacaklar
   c.strokeStyle="#2d2540"; c.lineWidth=3.2;
-  if(pose==="sit"){ c.beginPath(); c.moveTo(-1.5,-10); c.lineTo(5,-10); c.lineTo(5.5,0); c.stroke(); c.beginPath(); c.moveTo(1.5,-10); c.lineTo(7.5,-10); c.lineTo(8,0); c.stroke(); }
+  if(pose==="sit"||pose==="eat"){ c.beginPath(); c.moveTo(-1.5,-10); c.lineTo(5,-10); c.lineTo(5.5,0); c.stroke(); c.beginPath(); c.moveTo(1.5,-10); c.lineTo(7.5,-10); c.lineTo(8,0); c.stroke(); }
   else { c.beginPath(); c.moveTo(-1.5,-10); c.lineTo(-1.5-5*sw,0); c.stroke(); c.beginPath(); c.moveTo(1.5,-10); c.lineTo(1.5+5*sw,0); c.stroke(); }
   // gövde
   c.fillStyle=fit; c.beginPath(); c.moveTo(-4,-19); c.lineTo(4,-19); c.lineTo(f?5:4.5,-9); c.lineTo(f?-5:-4.5,-9); c.closePath(); c.fill();
@@ -1387,6 +1249,15 @@ function hero(c,x,y,s,h,pose,t){
   if(pose==="cheer"){ c.beginPath(); c.moveTo(-3.5,-17); c.lineTo(-7,-24); c.lineTo(-8+wave,-30); c.stroke();
     c.beginPath(); c.moveTo(3.5,-17); c.lineTo(7,-24); c.lineTo(8-wave,-30); c.stroke(); }
   else if(pose==="sit"){ const wr=reduce?0:Math.sin(t/260)*0.7; c.beginPath(); c.moveTo(-2,-17); c.lineTo(5,-14); c.lineTo(10+wr,-14.5); c.stroke(); c.beginPath(); c.moveTo(2.5,-17); c.lineTo(8,-15); c.lineTo(12,-15.5-wr*0.5); c.stroke(); }
+  else if(pose==="eat"){   // sol el kâseyi tutar, sağ el çatalı ağza götürür
+    const e=reduce?0.3:Math.max(0,Math.sin(t/650))**2, hx2=8-5.5*e, hy2=-13.5-8*e;
+    c.beginPath(); c.moveTo(-3,-17); c.lineTo(2,-12.5); c.lineTo(6,-12); c.stroke();
+    c.fillStyle="#f2efe6"; c.beginPath(); c.moveTo(3.5,-14); c.lineTo(10.5,-14); c.lineTo(9.5,-9.5); c.lineTo(4.5,-9.5); c.closePath(); c.fill();
+    c.fillStyle="#ff4d6d"; c.fillRect(3.9,-12.6,6.2,1.3);
+    c.strokeStyle="#e8c36a"; c.lineWidth=0.7; for(let i=0;i<3;i++){ c.beginPath(); c.moveTo(5+i*1.6,-14); c.quadraticCurveTo(5.8+i*1.6,-15.2,6.4+i*1.6,-14); c.stroke(); }
+    c.strokeStyle=skin; c.lineWidth=2.4; c.beginPath(); c.moveTo(3,-17); c.lineTo(5+2*(1-e),-15+0*e); c.lineTo(hx2,hy2); c.stroke();
+    c.strokeStyle="#c9c2d6"; c.lineWidth=0.8; c.beginPath(); c.moveTo(hx2,hy2); c.lineTo(hx2-2.2,hy2-1.6+2.5*(1-e)); c.stroke();
+    if(e>0.1){ c.strokeStyle="#e8c36a"; c.lineWidth=0.6; c.beginPath(); c.moveTo(hx2-2.2,hy2-1.6+2.5*(1-e)); c.lineTo(hx2-2,hy2+0.8); c.stroke(); } }
   else { c.beginPath(); c.moveTo(-3.5,-17); c.lineTo(-4.5+4*sw,-10); c.stroke(); c.beginPath(); c.moveTo(3.5,-17); c.lineTo(4.5-4*sw,-10); c.stroke(); }
   // kafa
   c.fillStyle=skin; c.beginPath(); c.arc(0,-23.5,4.4,0,7); c.fill();
@@ -1394,6 +1265,7 @@ function hero(c,x,y,s,h,pose,t){
   if(!f){ c.fillRect(-4.4,-26,8.8,2); }
   c.fillStyle="#1a0d26"; c.fillRect(1,-24,1,1.2); c.fillRect(-2,-24,1,1.2);
   if(pose==="cheer"){ c.strokeStyle="#1a0d26"; c.lineWidth=0.8; c.beginPath(); c.arc(-0.5,-22,1.6,0.2,Math.PI-0.2); c.stroke(); }
+  if(pose==="eat"){ const e=reduce?0.3:Math.max(0,Math.sin(t/650))**2; c.fillStyle="#1a0d26"; c.beginPath(); c.ellipse(1.2,-21.6,0.9,e>0.7?0.9:0.35+0.25*Math.abs(Math.sin(t/120)),0,0,7); c.fill(); }
   if(h.acc) heroAcc(c,h.acc);
   c.restore();
 }
@@ -1623,11 +1495,64 @@ function heroAcc(c,acc){
   if(acc==="crown"){ c.fillStyle="#c3f53c"; c.beginPath(); c.moveTo(-4.4,-27.4); c.lineTo(-4.4,-31); c.lineTo(-2.2,-29); c.lineTo(0,-32); c.lineTo(2.2,-29); c.lineTo(4.4,-31); c.lineTo(4.4,-27.4); c.closePath(); c.fill(); }
 }
 /* odak ekranı sahnesi: loş oda, masa, lamba, pencerede uzak gölgeler */
+/* mola sahnesi: sığınağın mutfak köşesi; sıcak renkler, gün batımı, atıştıran karakter */
+function drawBreak(c,W,H,t){
+  const k=Math.max(2.6,Math.min(5,Math.min(W/120,H/190))), floorY=H*0.8, mv=reduce?0:1;
+  const wall=c.createLinearGradient(0,0,0,H); wall.addColorStop(0,"#16282a"); wall.addColorStop(1,"#0e1a1b"); c.fillStyle=wall; c.fillRect(0,0,W,H);
+  // ahşap lambri
+  c.fillStyle="#1b2f2f"; c.fillRect(0,floorY-H*0.16,W,H*0.16); c.fillStyle="rgba(0,0,0,.18)"; for(let x=0;x<W;x+=26) c.fillRect(x,floorY-H*0.16,2,H*0.16);
+  // pencere: gün batımı ve uzakta tembel tembel yürüyen sürü
+  const ww=Math.min(W*0.46,380), wh=Math.min(H*0.34,ww*0.62), wx=W*0.5-ww/2, wy=H*0.12;
+  const sky=c.createLinearGradient(0,wy,0,wy+wh); sky.addColorStop(0,"#3b2a5c"); sky.addColorStop(0.55,"#d9707a"); sky.addColorStop(1,"#ffb36b"); c.fillStyle=sky; c.fillRect(wx,wy,ww,wh);
+  c.fillStyle="#ffd38a"; c.beginPath(); c.arc(wx+ww*0.68,wy+wh*0.82,ww*0.09,0,7); c.fill();
+  c.save(); c.beginPath(); c.rect(wx,wy,ww,wh); c.clip();
+  let sd=3; const r=()=>(sd=(sd*9301+49297)%233280)/233280; c.fillStyle="#2a1f3a";
+  for(let x=wx;x<wx+ww;){ const bw=12+r()*26, bh=wh*(0.12+r()*0.3); c.fillRect(x,wy+wh-bh,bw,bh); x+=bw+2; }
+  for(let i=0;i<3;i++){ const px=wx+((t/140*mv+i*ww*0.4)%(ww+40))-20, py=wy+wh-3; c.fillStyle="#1d1529";
+    c.beginPath(); c.arc(px,py-10,2.4,0,7); c.fill(); c.fillRect(px-1.8,py-8,3.6,8); c.fillRect(px+1,py-7,4,1.2); }
+  c.restore();
+  c.strokeStyle="#0b1415"; c.lineWidth=Math.max(5,ww*0.025); c.strokeRect(wx,wy,ww,wh); c.beginPath(); c.moveTo(wx+ww/2,wy); c.lineTo(wx+ww/2,wy+wh); c.lineWidth=3; c.stroke();
+  // pencere ışığı
+  const sl=c.createLinearGradient(0,wy,0,floorY); sl.addColorStop(0,"rgba(255,179,107,.13)"); sl.addColorStop(1,"rgba(255,179,107,0)");
+  c.fillStyle=sl; c.beginPath(); c.moveTo(wx,wy+wh); c.lineTo(wx+ww,wy+wh); c.lineTo(wx+ww+W*0.12,floorY); c.lineTo(wx-W*0.12,floorY); c.closePath(); c.fill();
+  // ışık zinciri
+  const cols=["#ffd38a","#57e0c8","#ff8fa3","#c3f53c"]; c.strokeStyle="#2c3c3c"; c.lineWidth=1.5; c.beginPath(); c.moveTo(0,H*0.06);
+  for(let x=0;x<=W;x+=8) c.lineTo(x,H*0.06+Math.sin(x/W*Math.PI)*H*0.05); c.stroke();
+  for(let i=0,n=Math.max(8,Math.round(W/45));i<=n;i++){ const x=i/n*W, y=H*0.06+Math.sin(x/W*Math.PI)*H*0.05+5, on=0.55+0.45*Math.sin(t/500*mv+i*1.7);
+    c.fillStyle=cols[i%4]; c.globalAlpha=0.25*on; c.beginPath(); c.arc(x,y,9,0,7); c.fill(); c.globalAlpha=0.6+0.4*on; c.beginPath(); c.arc(x,y,2.8,0,7); c.fill(); }
+  c.globalAlpha=1;
+  // buzdolabı
+  const fw=Math.min(W*0.16,120), fh=Math.min(H*0.5,fw*2.3), fx=Math.max(10,W*0.04), fy=floorY-fh;
+  c.fillStyle="#c9d6d2"; c.fillRect(fx,fy,fw,fh); c.fillStyle="#b2c1bd"; c.fillRect(fx,fy+fh*0.36,fw,3);
+  c.fillStyle="#7d8c88"; c.fillRect(fx+fw-10,fy+fh*0.12,4,fh*0.16); c.fillRect(fx+fw-10,fy+fh*0.45,4,fh*0.22);
+  [["#ff4d6d",0.2,0.15],["#c3f53c",0.45,0.22],["#9b5de5",0.3,0.55],["#57e0c8",0.55,0.7]].forEach(([col,a,b])=>{ c.fillStyle=col; c.fillRect(fx+fw*a,fy+fh*b,8,8); });
+  c.fillStyle="#f2efe6"; c.fillRect(fx+fw*0.18,fy+fh*0.6,fw*0.32,fh*0.12); c.fillStyle="#9a8fb0"; for(let i=0;i<3;i++) c.fillRect(fx+fw*0.22,fy+fh*0.63+i*5,fw*0.22,1.5);
+  // bitki
+  const px=fx+fw+W*0.04; c.fillStyle="#7a4a32"; c.fillRect(px,floorY-26,22,26); c.fillStyle="#3f8f5a";
+  for(let i=0;i<5;i++){ const a=-Math.PI/2+(i-2)*0.45+Math.sin(t/1400*mv+i)*0.04; c.beginPath(); c.ellipse(px+11+Math.cos(a)*16,floorY-30+Math.sin(a)*16,5,13,a+Math.PI/2,0,7); c.fill(); }
+  // halı, puf ve sehpa
+  c.fillStyle="#2f2440"; c.beginPath(); c.ellipse(W*0.62,floorY+H*0.06,Math.min(W*0.3,260),H*0.05,0,0,7); c.fill();
+  const hx=W*0.6, bean=Math.min(W*0.2,170);
+  c.fillStyle="#c9654c"; c.beginPath(); c.ellipse(hx-5*k,floorY-17*k,6.5*k,10*k,-0.25,0,7); c.fill();
+  c.fillStyle="#e07a5f"; c.beginPath(); c.ellipse(hx+1*k,floorY-5*k,Math.max(13*k,bean*0.45),6*k,0,0,7); c.fill();
+  c.fillStyle="rgba(255,255,255,.08)"; c.beginPath(); c.ellipse(hx-2*k,floorY-8*k,7*k,2*k,0,0,7); c.fill();
+  if(S.hero) hero(c,hx,floorY,k,S.hero,"eat",t);
+  const tx=hx+Math.max(13*k,bean*0.45)+6*k, tw=Math.min(W*0.14,110), cy=floorY-12*k;
+  if(tx+tw<W-6){ c.fillStyle="#5a3e2b"; c.fillRect(tx,cy,tw,2*k); c.fillRect(tx+6,cy,4,12*k); c.fillRect(tx+tw-10,cy,4,12*k);
+    c.fillStyle="#57e0c8"; c.fillRect(tx+tw*0.12,cy-5*k,3*k,5*k); c.fillStyle="#2c8f7f"; c.fillRect(tx+tw*0.12,cy-5*k,3*k,2);
+    c.fillStyle="#d9b44a"; c.beginPath(); c.ellipse(tx+tw*0.62,cy-2,tw*0.24,4,0,0,7); c.fill(); c.fillStyle="#f0cf6a";
+    for(let i=0;i<5;i++){ c.beginPath(); c.arc(tx+tw*(0.48+i*0.06),cy-5-(i%2)*2,3,0,7); c.fill(); } }
+  // buhar
+  if(mv){ c.strokeStyle="rgba(255,255,255,.22)"; c.lineWidth=1.6; for(let i=0;i<3;i++){ const ph=(t/1800+i/3)%1, bx=hx+7*k+(i-1)*k, by=floorY-15*k-ph*8*k;
+    c.globalAlpha=(1-ph)*0.7; c.beginPath(); c.moveTo(bx,by+6); c.quadraticCurveTo(bx+Math.sin(t/300+i)*4,by+2,bx,by-4); c.stroke(); } c.globalAlpha=1; }
+  c.fillStyle="rgba(10,16,16,.18)"; c.fillRect(0,0,W,H);
+}
 function drawFocus(cv,t){
   const c=cv.getContext("2d"), dpr=Math.min(2,devicePixelRatio||1), W=cv.clientWidth, H=cv.clientHeight; if(!W) return;
   if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
   c.setTransform(dpr,0,0,dpr,0,0);
-  const brk=S.focus&&S.focus.phase==="break", k=Math.max(2.2,Math.min(4,Math.min(W/150,H/230)));
+  if(S.focus&&S.focus.phase==="break") return drawBreak(c,W,H,t);
+  const brk=false, k=Math.max(2.2,Math.min(4,Math.min(W/150,H/230)));
   const wall=c.createLinearGradient(0,0,0,H); wall.addColorStop(0,"#130b1e"); wall.addColorStop(1,"#0c0713"); c.fillStyle=wall; c.fillRect(0,0,W,H);
   const floorY=H*0.8; c.fillStyle="#0a0610"; c.fillRect(0,floorY,W,H-floorY);
   // pencere
@@ -1846,7 +1771,7 @@ function renderBoard(){
 /* ---------- ilk kullanım rehberi ---------- */
 const INTRO=[
   ["Görevini yaz, süreni seç","“Baskını başlat”a bas, bugün ne çalışacağını yaz (15 soru, 30 dakika, 10 sayfa…) ve ne kadar vaktin olduğunu seç. Süre başlayınca sürü ormandan yürümeye başlar."],
-  ["Odakta çalış, görevleri bitir","Odak ekranında sayaç ve sakin arka plan sesleri var. Her bitirdiğin görev sürüyü geri iter ve Brains kazandırır. Hafıza kartı tekrarları da sayılır."],
+  ["Pomodoro yap, görevleri bitir","Pomodoro sekmesinden 25, 30 ya da 40 dakika seç; molada sığınağın mutfağında atıştırırsın. Her bitirdiğin görev sürüyü geri iter ve Brains kazandırır. Hafıza kartı tekrarları da sayılır."],
   ["Süre biterse ısırılırsın","Bitiremezsen enfekte olursun ve kısa bir tedavi süren başlar. Onu da kaçırırsan karakterin ölür: Brains ve sığınak geliştirmeleri sürüye gider."],
   ["Brains'ini harca","Menü › Sığınak'tan barikatı, tareti ve sığınağı güçlendir, kozmetik al. Baskın kazandıkça zombi kartı toplarsın; bazılarının gücü var."]];
 function showIntro(i){

@@ -1,7 +1,7 @@
 // Survive the Syllabus — çevrimdışı destek
 // Site dosyaları her zaman önce internetten alınır (güncellemeler hemen görünür),
 // internet yoksa son kaydedilen kopya açılır. Giriş ve kayıt istekleri hiç önbelleğe alınmaz.
-const CACHE = "sts-v1";
+const CACHE = "sts-v2";
 const CORE = ["/", "/platform.js", "/config.js", "/manifest.webmanifest", "/icon-192.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all(CORE.map(u => c.add(u).catch(() => {})))));
