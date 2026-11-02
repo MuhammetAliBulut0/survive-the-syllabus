@@ -297,6 +297,7 @@ textarea{min-height:90px;resize:vertical}
 .bdg.on{opacity:1;border-style:solid;border-color:var(--toxic);background:color-mix(in oklab,var(--toxic) 8%,var(--panel2))}
 .bdg b{font-size:13px} .bdg small{font-size:11px;color:var(--muted)} .bdg em{font-style:normal;font-family:var(--f-mono);font-size:11px;color:var(--toxic)}
 /* mağaza */
+.roomPrev{display:block;width:100%;height:clamp(170px,42vw,260px);border:1px solid var(--line);background:#0c0713}
 .shop{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
 .item{display:flex;flex-direction:column;gap:4px;align-items:flex-start;text-align:left;padding:10px;background:var(--panel2);border:1px solid var(--line)}
 .item i{width:28px;height:28px;border:1px solid var(--line)} .item span{font-size:13px;font-weight:600} .item small{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
@@ -375,6 +376,7 @@ textarea{min-height:90px;resize:vertical}
     <p class="decay" id="decayTxt" hidden></p>
     <p class="note">Çalışmadığın her gün barikat bir kademe çürür. Üç gün boş geçerse taret de paslanır.</p>
   </section></div>
+  <div id="roomBox" hidden></div>
   <div id="shopBox" hidden></div>
 
   <div class="frame" id="dev" hidden><section class="panel">
@@ -468,7 +470,7 @@ const SITE = !!window.STS_SITE;
 const fresh = () => ({ v:1, hero:null, cards:{}, earned:0, week:"", weekEarned:0, shield:false, pendingCard:null, survivor:1, status:"alive", brains:0, bar:0, wpn:0, shl:0, survived:0, deaths:0,
   lastActive:now(), lastDecayCheck:now(), raid:null, lastWin:null, decayMsg:"",
   days:[], badges:{}, focus:null, focusLog:[], deck:[], reviewLog:[], taskLog:[], exams:[], courses:[],
-  quests:{day:"",claimed:[]}, pledge:null, shop:{owned:[],eq:{}}, remind:false, settings:{len:25,brk:5},
+  quests:{day:"",claimed:[]}, pledge:null, shop:{owned:[],eq:{}}, room:{wall:"plum",view:"moon",own:["plant"],on:["plant"]}, remind:false, settings:{len:25,brk:5},
   tot:{focus:0,focusMin:0,reviews:0}, cleanStreak:0 });
 let S = fresh();
 let draft = [{title:"Matematik — türev soruları",qty:15,unit:"soru",course:"Matematik"},{title:"OOP ders notları",qty:30,unit:"dakika",course:"OOP"}];
@@ -514,7 +516,7 @@ document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==
 window.addEventListener("focus",()=>{ if(now()-lastPull>2000) setTimeout(pull,200); });
 window.addEventListener("online",()=>setTimeout(pull,500));
 function migrate(){ const f=fresh(); for(const k in f) if(S[k]===undefined) S[k]=f[k];
-  S.tot=Object.assign({focus:0,focusMin:0,reviews:0},S.tot); S.shop=Object.assign({owned:[],eq:{}},S.shop); S.settings=Object.assign({len:25,brk:5},S.settings); delete S.settings.sound; delete S.settings.vol; if(S.settings.len===50) S.settings.len=40; }
+  S.tot=Object.assign({focus:0,focusMin:0,reviews:0},S.tot); S.shop=Object.assign({owned:[],eq:{}},S.shop); S.room=Object.assign({wall:"plum",view:"moon",own:["plant"],on:["plant"]},S.room); S.settings=Object.assign({len:25,brk:5},S.settings); delete S.settings.sound; delete S.settings.vol; if(S.settings.len===50) S.settings.len=40; }
 let mergeOpen=false;
 function askGuestMerge(g,r){ return new Promise(res=>{ const ov=$("cov"); mergeOpen=true;
   const line=x=>`${x.brains||0} Brains · ${x.survived||0} baskın · ${(x.tot&&x.tot.focus)||0} pomodoro · ${(x.deck||[]).length} hafıza kartı`;
@@ -630,7 +632,7 @@ function infect(){
 }
 function die(){ S.status="dead"; S.deaths++; if(S.shield){ S.shield=false; S.savedByShield=true; } else { S.brains=0; S.bar=0; S.wpn=0; S.shl=0; S.savedByShield=false; } S.raid=null; if(S.focus) S.focus=null; sheetOpen=false; save(); render(); }
 function respawn(){
-  const keepKeys=["survived","deaths","cards","earned","week","weekEarned","days","badges","focusLog","deck","reviewLog","taskLog","exams","courses","quests","pledge","shop","remind","settings","tot"];
+  const keepKeys=["survived","deaths","cards","earned","week","weekEarned","days","badges","focusLog","deck","reviewLog","taskLog","exams","courses","quests","pledge","shop","room","introSeen","remind","settings","tot"];
   const keep={survivor:S.survivor+1}; keepKeys.forEach(k=>keep[k]=S[k]);
   if(S.savedByShield) Object.assign(keep,{brains:S.brains,bar:S.bar,wpn:S.wpn,shl:S.shl});
   S=Object.assign(fresh(),keep,{rev:S.rev,uid:S.uid}); if(S.shop.eq) S.shop.eq.outfit=null; save(); render(); }
@@ -902,6 +904,29 @@ function shopBox(){
       return `<button class="item${on?" on":""}" data-shop="${i.id}"${lock||(!own&&S.brains<i.price)?" disabled":""}><i style="background:${i.col}"></i><span>${esc(i.name)}</span><small>${on?"Takılı":own?"Tak":lock?"Kilitli":i.price+" Brains"}</small></button>`}).join("")}</div>`).join("")}`);
 }
 
+/* ---------- çalışma odası düzenleyici ---------- */
+function roomAct(kind,id){
+  const R=S.room;
+  if(kind==="wall"){ R.wall=id; save(); render(); return; }
+  const cat=kind==="view"?ROOM_VIEWS:ROOM_ITEMS, it=cat[id]; if(!it) return; const key=(kind==="view"?"v_":"")+id, own=it[1]===0||R.own.includes(key);
+  if(!own){ if(S.status==="dead") return toast("Önce yeni bir hayatta kalanla başla."); if(S.brains<it[1]) return toast("Yeterli Brains yok."); S.brains-=it[1]; R.own.push(key); toast(`${it[0]} odana eklendi`); if(kind==="item") R.on.push(id); else R.view=id; }
+  else if(kind==="view") R.view=id;
+  else R.on=R.on.includes(id)?R.on.filter(x=>x!==id):[...R.on,id];
+  save(); render();
+}
+function roomBox(){
+  const R=S.room, btn=(kind,id,[name,price],active,own,sw)=>`<button class="item${active?" on":""}" data-room="${kind}:${id}"${!own&&S.brains<price?" disabled":""}>${sw?`<i style="background:${sw}"></i>`:""}<span>${esc(name)}</span><small>${active?(kind==="item"?"Odada · kaldır":"Seçili"):own?(kind==="item"?"Odaya koy":"Seç"):price+" Brains"}</small></button>`;
+  return frame(`<div><div class="tag">Çalışma odan</div><h2>Pomodoro odanı kendin dizayn et</h2></div>
+    <canvas id="roomPrev" class="roomPrev" aria-label="Çalışma odası önizlemesi"></canvas>
+    <p class="note">Pomodoro yaparken bu odada oturursun. Duvar renkleri ücretsiz; eşyaları bir kez alırsın, sonra istediğin zaman koyup kaldırırsın. Ölünce de odan kalır.</p>
+    <div class="tag" style="margin-top:4px">Duvar rengi · ücretsiz</div>
+    <div class="shop">${Object.entries(ROOM_WALLS).map(([id,[n,a,b]])=>btn("wall",id,[n,0],R.wall===id,true,`linear-gradient(${a},${b})`)).join("")}</div>
+    <div class="tag" style="margin-top:4px">Pencere manzarası</div>
+    <div class="shop">${Object.entries(ROOM_VIEWS).map(([id,it])=>btn("view",id,it,R.view===id,it[1]===0||R.own.includes("v_"+id))).join("")}</div>
+    <div class="tag" style="margin-top:4px">Eşyalar</div>
+    <div class="shop">${Object.entries(ROOM_ITEMS).map(([id,it])=>btn("item",id,it,R.on.includes(id),it[1]===0||R.own.includes(id))).join("")}</div>`);
+}
+
 /* ---------- profil: seri, rapor, istatistik ---------- */
 const TRDAYS=["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"];
 function weekDays(){ const d=new Date(); const wd=(d.getDay()+6)%7; d.setDate(d.getDate()-wd); d.setHours(0,0,0,0);
@@ -1013,13 +1038,14 @@ function render(){
   $("survivorLbl").textContent=`Hayatta kalan #${S.survivor} · ${S.survived} baskın · ${streak()} gün seri`;
   $("sheet").hidden=!sheetOpen; $("mini").hidden=!sheetOpen; $("dock").hidden=sheetOpen; $("readouts").hidden=sheetOpen;
   TABS.forEach(([k])=>{ const b=$("tab_"+k); if(b) b.classList.toggle("on",tab===k); });
-  $("main").hidden=tab!=="tasks"; $("shelter").hidden=tab!=="shelter"; $("shopBox").hidden=tab!=="shelter"; $("dev").hidden=!(devOK&&tab==="shelter");
+  $("main").hidden=tab!=="tasks"; $("shelter").hidden=tab!=="shelter"; $("shopBox").hidden=tab!=="shelter"; $("roomBox").hidden=tab!=="shelter"; $("dev").hidden=!(devOK&&tab==="shelter");
   $("cardsTab").hidden=tab!=="cards"; $("profileTab").hidden=tab!=="profile"; $("focusTab").hidden=tab!=="focus"; $("reviewTab").hidden=tab!=="review";
   if(sheetOpen){
     if(tab==="cards") renderCards(); if(tab==="profile") renderProfile();
     if(tab==="focus"){ $("focusTab").innerHTML=focusTabView(); bindFocusTab(); }
     if(tab==="review"){ $("reviewTab").innerHTML=reviewView(); bindReview(); }
-    if(tab==="shelter"){ $("shopBox").innerHTML=shopBox(); $("shopBox").querySelectorAll("[data-shop]").forEach(b=>b.onclick=()=>shopAct(b.dataset.shop)); }
+    if(tab==="shelter"){ $("roomBox").innerHTML=roomBox(); $("roomBox").querySelectorAll("[data-room]").forEach(b=>b.onclick=()=>{ const [k,id]=b.dataset.room.split(":"); roomAct(k,id); });
+      $("shopBox").innerHTML=shopBox(); $("shopBox").querySelectorAll("[data-shop]").forEach(b=>b.onclick=()=>shopAct(b.dataset.shop)); }
   }
   renderCov(); renderFocusOv();
   const needPick=storeReady&&!S.hero&&S.status!=="dead"; $("picker").hidden=!needPick; if(needPick) renderPicker();
@@ -1570,45 +1596,103 @@ function drawBreak(c,W,H,t){
     c.globalAlpha=(1-ph)*0.7; c.beginPath(); c.moveTo(bx,by+6); c.quadraticCurveTo(bx+Math.sin(t/300+i)*4,by+2,bx,by-4); c.stroke(); } c.globalAlpha=1; }
   c.fillStyle="rgba(10,16,16,.18)"; c.fillRect(0,0,W,H);
 }
-function drawFocus(cv,t){
-  const c=cv.getContext("2d"), dpr=Math.min(2,devicePixelRatio||1), W=cv.clientWidth, H=cv.clientHeight; if(!W) return;
-  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
-  c.setTransform(dpr,0,0,dpr,0,0);
-  if(S.focus&&S.focus.phase==="break") return drawBreak(c,W,H,t);
-  const brk=false, k=Math.max(2.2,Math.min(4,Math.min(W/150,H/230)));
-  const wall=c.createLinearGradient(0,0,0,H); wall.addColorStop(0,"#130b1e"); wall.addColorStop(1,"#0c0713"); c.fillStyle=wall; c.fillRect(0,0,W,H);
-  const floorY=H*0.8; c.fillStyle="#0a0610"; c.fillRect(0,floorY,W,H-floorY);
-  // pencere
-  const ww=Math.min(W*0.32,230), wh=ww*0.85, wx=Math.max(16,W*0.08), wy=H*0.18;
-  const sky=c.createLinearGradient(0,wy,0,wy+wh); sky.addColorStop(0,brk?"#2a1d48":"#170f2a"); sky.addColorStop(1,brk?"#4a2a5a":"#24143a");
+/* ---------- çalışma odası (oyuncu kendi dizayn eder) ---------- */
+const ROOM_WALLS={plum:["Mor gece","#1a0f28","#0c0713","#0a0610"],navy:["Gece mavisi","#0f1830","#080c18","#060912"],forest:["Orman","#10201a","#09110c","#060c08"],
+  coffee:["Kahve","#22170f","#140d09","#0e0906"],wine:["Bordo","#26101a","#14080d","#0d0509"],graphite:["Grafit","#1b1b21","#0e0e11","#09090b"],lilac:["Lavanta","#33284d","#1c1530","#120d1f"]};
+const ROOM_VIEWS={moon:["Ay ve şehir",0],rain:["Yağmur",15],snow:["Kar",15],zombie:["Camda zombi",20],stars:["Kayan yıldızlar",25],aurora:["Kuzey ışıkları",30]};
+const ROOM_ITEMS={plant:["Saksı bitkisi",0],rug:["Halı",10],mug:["Kahve kupası",10],poster:["Poster",10],boards:["Pencere tahtaları",15],clock:["Duvar saati",15],
+  shelf:["Kitap rafı",15],laptop:["Dizüstü",20],lava:["Lav lambası",20],lights:["Işık zinciri",20],guitar:["Gitar",25],trophy:["Zombi trofesi",30],cat:["Kedi",40]};
+const roomOn=id=>(S.room.on||[]).includes(id);
+function drawRoom(c,W,H,t,preview){
+  const R=S.room, pal=ROOM_WALLS[R.wall]||ROOM_WALLS.plum, mv=reduce?0:1;
+  const sw=Math.min(W,H*(preview?1.6:1.3)), sx=(W-sw)/2, k=Math.max(preview?1.2:2.2,Math.min(preview?4:5,Math.min(sw/150,H/(preview?150:215)))), fY=H*0.8;
+  const wall=c.createLinearGradient(0,0,0,H); wall.addColorStop(0,pal[1]); wall.addColorStop(1,pal[2]); c.fillStyle=wall; c.fillRect(0,0,W,H);
+  c.fillStyle=pal[3]; c.fillRect(0,fY,W,H-fY); c.fillStyle="rgba(255,255,255,.04)"; c.fillRect(0,fY,W,2);
+  // ---- pencere
+  const ww=Math.min(sw*0.3,240), wh=ww*0.85, wx=sx+sw*0.07, wy=H*(preview?0.1:0.16);
+  c.save(); c.beginPath(); c.rect(wx,wy,ww,wh); c.clip();
+  const v=R.view||"moon", sky=c.createLinearGradient(0,wy,0,wy+wh);
+  if(v==="aurora"){ sky.addColorStop(0,"#06141c"); sky.addColorStop(1,"#10283a"); } else if(v==="snow"){ sky.addColorStop(0,"#1c2236"); sky.addColorStop(1,"#3a4058"); }
+  else if(v==="rain"){ sky.addColorStop(0,"#121626"); sky.addColorStop(1,"#1d2236"); } else { sky.addColorStop(0,"#170f2a"); sky.addColorStop(1,"#24143a"); }
   c.fillStyle=sky; c.fillRect(wx,wy,ww,wh);
-  c.fillStyle="rgba(228,247,184,.55)"; c.beginPath(); c.arc(wx+ww*0.72,wy+wh*0.28,Math.max(6,ww*0.07),0,7); c.fill();
+  if(v==="aurora"){ for(let b=0;b<3;b++){ c.beginPath(); c.moveTo(wx,wy+wh*0.5); for(let x=0;x<=ww;x+=6) c.lineTo(wx+x,wy+wh*(0.28+b*0.1)+Math.sin(x/ww*6+t/1800*mv+b)*wh*0.07);
+      c.lineTo(wx+ww,wy+wh*0.75); c.lineTo(wx,wy+wh*0.75); c.closePath(); const g=c.createLinearGradient(0,wy,0,wy+wh*0.75); g.addColorStop(0,b%2?"rgba(155,93,229,.0)":"rgba(87,224,140,.0)"); g.addColorStop(0.5,b%2?"rgba(155,93,229,.22)":"rgba(87,224,140,.28)"); g.addColorStop(1,"rgba(0,0,0,0)"); c.fillStyle=g; c.fill(); } }
+  if(v==="moon"||v==="stars"||v==="zombie"){ c.fillStyle="rgba(228,247,184,.55)"; c.beginPath(); c.arc(wx+ww*0.72,wy+wh*0.28,Math.max(5,ww*0.07),0,7); c.fill(); }
+  if(v==="stars"){ for(let i=0;i<14;i++){ c.fillStyle="rgba(255,255,255,.7)"; c.fillRect(wx+((i*53)%ww),wy+((i*29)%(wh*0.6)),1.5,1.5); }
+    const ph=((t*mv)/2600)%1; if(ph<0.35){ const q=ph/0.35, x0=wx+ww*(0.9-q*0.7), y0=wy+wh*(0.1+q*0.3); const g=c.createLinearGradient(x0,y0,x0+30,y0-14); g.addColorStop(0,"rgba(255,255,255,.9)"); g.addColorStop(1,"rgba(255,255,255,0)"); c.strokeStyle=g; c.lineWidth=2; c.beginPath(); c.moveTo(x0,y0); c.lineTo(x0+30,y0-14); c.stroke(); } }
   c.fillStyle="#120a1c"; c.fillRect(wx,wy+wh*0.78,ww,wh*0.22);
-  for(let i=0;i<3;i++){ const px=wx+((t/90+i*ww*0.37)%(ww+30))-15, py=wy+wh*0.8; c.globalAlpha=0.28; c.fillStyle="#3a3050";
-    c.beginPath(); c.arc(px,py-9,2.6,0,7); c.fill(); c.fillRect(px-2,py-7,4,8); c.globalAlpha=1; }
-  c.strokeStyle="#2a2038"; c.lineWidth=Math.max(4,ww*0.03); c.strokeRect(wx,wy,ww,wh);
-  if(brk){ c.fillStyle="#2a2038"; c.fillRect(wx-ww*0.12,wy,ww*0.12,wh); c.fillRect(wx+ww,wy,ww*0.12,wh); }
-  else { c.beginPath(); c.moveTo(wx+ww/2,wy); c.lineTo(wx+ww/2,wy+wh); c.moveTo(wx,wy+wh/2); c.lineTo(wx+ww,wy+wh/2); c.lineWidth=2; c.stroke(); }
-  // masa
-  const dw=Math.min(W*0.42,320), dx=W-dw-Math.max(16,W*0.06), dy=floorY-17*k;
-  // lamba ışığı
-  const lx=dx+dw*0.8, ly=dy-38*k*0.5, fl=reduce?0:Math.sin(t/900)*0.015+Math.sin(t/370)*0.01;
-  const glow=c.createRadialGradient(lx,ly+10,4,lx,ly+10,Math.max(W,H)*0.45); glow.addColorStop(0,`rgba(255,207,154,${0.20+fl})`); glow.addColorStop(1,"rgba(255,207,154,0)");
-  c.fillStyle=glow; c.fillRect(0,0,W,H);
-  c.fillStyle="#24182f"; c.fillRect(dx,dy,dw,8*k*0.5); c.fillRect(dx+6,dy,5*k*0.5,floorY-dy); c.fillRect(dx+dw-10,dy,5*k*0.5,floorY-dy);
-  c.strokeStyle="#3a2e4a"; c.lineWidth=2.5; c.beginPath(); c.moveTo(lx,dy); c.lineTo(lx-8*k*0.5,ly+6); c.lineTo(lx,ly); c.stroke();
-  c.fillStyle="#4a3a5e"; c.beginPath(); c.moveTo(lx-10*k*0.5,ly+8); c.lineTo(lx+6*k*0.5,ly+8); c.lineTo(lx+2,ly-4); c.lineTo(lx-6,ly-4); c.closePath(); c.fill();
-  c.fillStyle="rgba(255,214,170,.7)"; c.fillRect(lx-8*k*0.5,ly+7,12*k*0.5,2);
-  // kitaplar ve kâğıt
-  [["#5a3a6e",0],["#2f4a5c",1],["#5c2f3a",2]].forEach(([col,i])=>{ c.fillStyle=col; c.fillRect(dx+dw*0.52,dy-(i+1)*5*k*0.5,dw*0.18,4.5*k*0.5); });
-  c.fillStyle="#cfc6dc"; c.globalAlpha=0.5; c.fillRect(dx+dw*0.18,dy-2,dw*0.2,2.5); c.globalAlpha=1;
-  // sandalye ve karakter
-  const hx=dx-4*k, seat=floorY-10*k;
-  if(!brk){ c.fillStyle="#1e1428"; c.fillRect(hx-5*k,seat,9*k,2.5); c.fillRect(hx-5*k,seat-15*k,2.2,15*k); c.fillRect(hx-4.5*k,seat,2,floorY-seat); c.fillRect(hx+2.5*k,seat,2,floorY-seat); }
-  if(S.hero){ if(brk) hero(c,wx+ww+30*k,floorY,k,S.hero,"cheer",t*0.35); else hero(c,hx,floorY,k,S.hero,"sit",t); }
-  c.fillStyle="rgba(13,8,20,.32)"; c.fillRect(0,0,W,H);
+  if(v!=="zombie") for(let i=0;i<3;i++){ const px=wx+((t/90*mv+i*ww*0.37)%(ww+30))-15, py=wy+wh*0.8; c.globalAlpha=0.28; c.fillStyle="#3a3050"; c.beginPath(); c.arc(px,py-9,2.6,0,7); c.fill(); c.fillRect(px-2,py-7,4,8); c.globalAlpha=1; }
+  const hs=i=>{ const x=Math.sin(i*127.1+311.7)*43758.5453; return x-Math.floor(x); };
+  if(v==="rain"){ c.strokeStyle="rgba(170,190,255,.4)"; c.lineWidth=1; for(let i=0;i<45;i++){ const sp=0.25+hs(i+9)*0.25, x=wx+hs(i)*ww, y=wy+((hs(i+3)*wh+t*sp*mv)%wh); c.beginPath(); c.moveTo(x,y); c.lineTo(x-1.5,y+7); c.stroke(); } }
+  if(v==="snow"){ c.fillStyle="rgba(255,255,255,.85)"; for(let i=0;i<40;i++){ const sp=0.015+hs(i+5)*0.03, x=wx+((hs(i)*ww+Math.sin(t/1100*mv+i)*6)%ww+ww)%ww, y=wy+((hs(i+2)*wh+t*sp*mv)%wh); c.beginPath(); c.arc(x,y,0.9+hs(i+7)*1.4,0,7); c.fill(); } }
+  if(v==="zombie"){ const bob=Math.sin(t/700*mv)*wh*0.02, zx=wx+ww*0.5, zy=wy+wh*0.78+bob, r=ww*0.2, look=Math.sin(t/1500*mv)*r*0.12;
+    c.fillStyle="#7fb03a"; c.beginPath(); c.arc(zx,zy,r,Math.PI,0); c.lineTo(zx+r,zy+r); c.lineTo(zx-r,zy+r); c.fill();
+    c.fillStyle="#5e8a2a"; c.beginPath(); c.arc(zx-r*0.45,zy-r*0.55,r*0.18,0,7); c.fill();
+    c.fillStyle="#1a0d26"; c.beginPath(); c.arc(zx-r*0.35,zy-r*0.25,r*0.16,0,7); c.arc(zx+r*0.35,zy-r*0.25,r*0.16,0,7); c.fill();
+    c.fillStyle="#ff4d6d"; c.beginPath(); c.arc(zx-r*0.35+look,zy-r*0.25,r*0.07,0,7); c.arc(zx+r*0.35+look,zy-r*0.25,r*0.07,0,7); c.fill();
+    c.fillStyle="#1a0d26"; c.fillRect(zx-r*0.3,zy+r*0.15,r*0.6,r*0.12);
+    c.fillStyle="#93c447"; [[-1,0],[1,1]].forEach(([d,o])=>{ const hx=zx+d*r*1.3, hy=zy-r*0.1+Math.sin(t/500*mv+o)*r*0.08; c.beginPath(); c.ellipse(hx,hy,r*0.28,r*0.34,0,0,7); c.fill();
+      for(let f=0;f<4;f++) c.fillRect(hx-r*0.22+f*r*0.13,hy-r*0.55,r*0.09,r*0.25); });
+    c.fillStyle="rgba(255,255,255,.06)"; c.fillRect(wx,wy,ww,wh); }
+  c.restore();
+  c.strokeStyle="#2a2038"; c.lineWidth=Math.max(3,ww*0.03); c.strokeRect(wx,wy,ww,wh);
+  c.beginPath(); c.moveTo(wx+ww/2,wy); c.lineTo(wx+ww/2,wy+wh); c.moveTo(wx,wy+wh/2); c.lineTo(wx+ww,wy+wh/2); c.lineWidth=2; c.stroke();
+  if(roomOn("boards")){ c.fillStyle="#6b4a32"; [[0.05,0.12,-0.12],[0.1,0.9,0.08]].forEach(([a,b,rot])=>{ c.save(); c.translate(wx+ww*0.5,wy+wh*b); c.rotate(rot); c.fillRect(-ww*0.58,-wh*0.055,ww*1.16,wh*0.11); c.fillStyle="#2a1b12"; c.fillRect(-ww*0.5,-1.5,3,3); c.fillRect(ww*0.47,-1.5,3,3); c.fillStyle="#6b4a32"; c.restore(); }); }
+  // ---- duvar eşyaları
+  if(roomOn("lights")){ const cols=["#ffd38a","#57e0c8","#ff8fa3","#c3f53c"], top=H*0.05; c.strokeStyle="#2c2a3c"; c.lineWidth=1.2; c.beginPath(); for(let x=0;x<=W;x+=8) c.lineTo(x,top+Math.sin(x/W*Math.PI)*H*0.04); c.stroke();
+    for(let i=0,n=Math.max(8,Math.round(W/45));i<=n;i++){ const x=i/n*W, y=top+Math.sin(x/W*Math.PI)*H*0.04+4, on=0.55+0.45*Math.sin(t/500*mv+i*1.7); c.fillStyle=cols[i%4]; c.globalAlpha=0.22*on; c.beginPath(); c.arc(x,y,8,0,7); c.fill(); c.globalAlpha=0.6+0.4*on; c.beginPath(); c.arc(x,y,2.4,0,7); c.fill(); } c.globalAlpha=1; }
+  const rx=wx+ww+sw*0.05;
+  if(roomOn("clock")){ const cr=Math.max(9,ww*0.09), cx=rx+cr, cy=wy+cr*1.2, d=new Date(), hh=(d.getHours()%12+d.getMinutes()/60)/12*Math.PI*2, mm=d.getMinutes()/60*Math.PI*2;
+    c.fillStyle="#e8e2d4"; c.beginPath(); c.arc(cx,cy,cr,0,7); c.fill(); c.strokeStyle="#3a2e4a"; c.lineWidth=2; c.stroke();
+    c.strokeStyle="#1a0d26"; c.lineWidth=1.8; c.beginPath(); c.moveTo(cx,cy); c.lineTo(cx+Math.sin(hh)*cr*0.5,cy-Math.cos(hh)*cr*0.5); c.moveTo(cx,cy); c.lineTo(cx+Math.sin(mm)*cr*0.8,cy-Math.cos(mm)*cr*0.8); c.stroke(); }
+  if(roomOn("poster")){ const pw=ww*0.36, ph=pw*1.35, px=rx, py=wy+wh*0.42; c.fillStyle="#2a1442"; c.fillRect(px,py,pw,ph); c.fillStyle="#c3f53c"; c.beginPath(); c.arc(px+pw/2,py+ph*0.42,pw*0.24,0,7); c.fill();
+    c.fillStyle="#ff4d6d"; c.fillRect(px+pw*0.38,py+ph*0.38,pw*0.07,pw*0.07); c.fillRect(px+pw*0.55,py+ph*0.38,pw*0.07,pw*0.07); c.fillStyle="#c3f53c"; c.fillRect(px+pw*0.15,py+ph*0.78,pw*0.7,ph*0.05); c.fillRect(px+pw*0.25,py+ph*0.87,pw*0.5,ph*0.04); }
+  const dw=Math.min(sw*0.42,320), dx=sx+sw*0.93-dw, dy=fY-17*k;
+  if(roomOn("shelf")){ const shy=dy-34*k, shx=dx+dw*0.05, shw=dw*0.5; c.fillStyle="#3a2a1e"; c.fillRect(shx,shy,shw,2.2*k*0.6+2);
+    ["#5a3a6e","#2f4a5c","#5c2f3a","#3f5a3a","#7a5a2e","#4a3e5c"].forEach((col,i)=>{ const bh=(5+(i*7)%4)*k*0.7; c.fillStyle=col; c.fillRect(shx+4+i*shw*0.1,shy-bh,shw*0.08,bh); });
+    c.fillStyle="#57e0c8"; c.beginPath(); c.arc(shx+shw*0.8,shy-3*k*0.7,3*k*0.7,0,7); c.fill(); }
+  if(roomOn("trophy")){ const tx=dx+dw*0.7, ty=dy-44*k; c.fillStyle="#5a3e2b"; c.beginPath(); c.moveTo(tx-8*k*0.7,ty+8*k*0.7); c.lineTo(tx+8*k*0.7,ty+8*k*0.7); c.lineTo(tx+6*k*0.7,ty+14*k*0.7); c.lineTo(tx-6*k*0.7,ty+14*k*0.7); c.fill();
+    c.fillStyle="#7fb03a"; c.beginPath(); c.arc(tx,ty+3*k*0.7,7*k*0.7,0,7); c.fill(); c.fillStyle="#1a0d26"; c.fillRect(tx-4*k*0.7,ty+1*k*0.7,2.4*k*0.7,2*k*0.7); c.fillRect(tx+1.6*k*0.7,ty+1*k*0.7,2.4*k*0.7,2*k*0.7);
+    c.fillStyle="#ff4d6d"; c.fillRect(tx-3.2*k*0.7,ty+1.6*k*0.7,1*k*0.7,1*k*0.7); c.fillRect(tx+2.4*k*0.7,ty+1.6*k*0.7,1*k*0.7,1*k*0.7); c.fillStyle="#1a0d26"; c.fillRect(tx-3*k*0.7,ty+6*k*0.7,6*k*0.7,1*k*0.7); }
+  // ---- lamba ışığı
+  const lc=(SHOP.find(i=>i.id===S.shop.eq.lamp)||{}).col||"#ffcf9a", lx=dx+dw*0.82, ly=dy-19*k, fl=reduce?0:Math.sin(t/900)*0.015+Math.sin(t/370)*0.01;
+  const rgb=[1,3,5].map(o=>parseInt(lc.slice(o,o+2),16)).join(","), glow=c.createRadialGradient(lx,ly+10,4,lx,ly+10,Math.max(W,H)*0.45);
+  glow.addColorStop(0,`rgba(${rgb},${0.2+fl})`); glow.addColorStop(1,`rgba(${rgb},0)`); c.fillStyle=glow; c.fillRect(0,0,W,H);
+  if(roomOn("lava")){ const lvx=dx+dw*0.47, lvy=dy, a=t/1600*mv; const lg=c.createRadialGradient(lvx,lvy-9*k,1,lvx,lvy-9*k,26*k); lg.addColorStop(0,"rgba(255,77,109,.18)"); lg.addColorStop(1,"rgba(255,77,109,0)"); c.fillStyle=lg; c.fillRect(lvx-26*k,lvy-35*k,52*k,52*k);
+    c.fillStyle="#3a2e4a"; c.fillRect(lvx-3*k*0.8,lvy-3*k*0.8,6*k*0.8,3*k*0.8); c.fillStyle="rgba(255,120,140,.35)"; c.beginPath(); c.moveTo(lvx-2.2*k*0.8,lvy-3*k*0.8); c.lineTo(lvx-1.2*k*0.8,lvy-14*k*0.8); c.lineTo(lvx+1.2*k*0.8,lvy-14*k*0.8); c.lineTo(lvx+2.2*k*0.8,lvy-3*k*0.8); c.fill();
+    c.fillStyle="#ff4d6d"; c.beginPath(); c.arc(lvx,lvy-(6+Math.sin(a)*3)*k*0.8,1.1*k*0.8,0,7); c.arc(lvx+0.3*k,lvy-(10+Math.sin(a+2)*2)*k*0.8,0.9*k*0.8,0,7); c.fill(); }
+  // ---- zemin: halı, bitki, gitar
+  if(roomOn("rug")){ c.fillStyle="#3a2440"; c.beginPath(); c.ellipse(dx+dw*0.2,fY+H*0.07,Math.min(sw*0.32,260),H*0.045,0,0,7); c.fill(); c.strokeStyle="#c3f53c"; c.globalAlpha=0.25; c.lineWidth=2; c.beginPath(); c.ellipse(dx+dw*0.2,fY+H*0.07,Math.min(sw*0.28,230),H*0.032,0,0,7); c.stroke(); c.globalAlpha=1; }
+  if(roomOn("plant")){ const px=sx+sw*0.02+4, s2=k*0.9; c.fillStyle="#7a4a32"; c.fillRect(px,fY-10*s2,9*s2,10*s2); c.fillStyle="#3f8f5a";
+    for(let i=0;i<5;i++){ const a=-Math.PI/2+(i-2)*0.45+Math.sin(t/1400*mv+i)*0.04; c.beginPath(); c.ellipse(px+4.5*s2+Math.cos(a)*7*s2,fY-12*s2+Math.sin(a)*7*s2,2.2*s2,5.5*s2,a+Math.PI/2,0,7); c.fill(); } }
+  if(roomOn("guitar")){ const gx=wx+ww+sw*0.02, s2=k*0.95; c.save(); c.translate(gx,fY); c.rotate(-0.18); c.fillStyle="#b5652e"; c.beginPath(); c.ellipse(0,-6*s2,5.5*s2,6*s2,0,0,7); c.fill(); c.beginPath(); c.ellipse(0,-14*s2,4.2*s2,4.6*s2,0,0,7); c.fill();
+    c.fillStyle="#1a0d26"; c.beginPath(); c.arc(0,-11*s2,1.5*s2,0,7); c.fill(); c.fillStyle="#3a2416"; c.fillRect(-0.9*s2,-36*s2,1.8*s2,22*s2); c.fillRect(-1.6*s2,-40*s2,3.2*s2,5*s2); c.restore(); }
+  // ---- masa ve masa üstü
+  c.fillStyle="#24182f"; c.fillRect(dx,dy,dw,4*k); c.fillRect(dx+6,dy,2.5*k,fY-dy); c.fillRect(dx+dw-10,dy,2.5*k,fY-dy);
+  c.strokeStyle="#3a2e4a"; c.lineWidth=2.5; c.beginPath(); c.moveTo(lx,dy); c.lineTo(lx-4*k,ly+6); c.lineTo(lx,ly); c.stroke();
+  c.fillStyle="#4a3a5e"; c.beginPath(); c.moveTo(lx-5*k,ly+8); c.lineTo(lx+3*k,ly+8); c.lineTo(lx+2,ly-4); c.lineTo(lx-6,ly-4); c.closePath(); c.fill(); c.fillStyle=lc; c.globalAlpha=0.7; c.fillRect(lx-4*k,ly+7,6*k,2); c.globalAlpha=1;
+  [["#5a3a6e",0],["#2f4a5c",1],["#5c2f3a",2]].forEach(([col,i])=>{ c.fillStyle=col; c.fillRect(dx+dw*0.56,dy-(i+1)*2.5*k,dw*0.16,2.2*k); });
+  if(roomOn("laptop")){ const lpx=dx+dw*0.08, lw=dw*0.2; c.fillStyle="#2a2238"; c.fillRect(lpx,dy-1.2*k,lw,1.2*k); c.save(); c.translate(lpx+lw*0.85,dy-1.2*k); c.rotate(-1.35); c.fillStyle="#2a2238"; c.fillRect(0,-1.2*k,lw*0.85,1.2*k);
+    c.fillStyle=`rgba(155,231,255,${0.5+0.08*Math.sin(t/400*mv)})`; c.fillRect(lw*0.06,-1.0*k,lw*0.73,0.6*k); c.restore();
+    const sg=c.createRadialGradient(lpx+lw*0.8,dy-6*k,1,lpx+lw*0.8,dy-6*k,16*k); sg.addColorStop(0,"rgba(155,231,255,.14)"); sg.addColorStop(1,"rgba(155,231,255,0)"); c.fillStyle=sg; c.fillRect(lpx-10*k,dy-22*k,lw+20*k,24*k); }
+  else { c.fillStyle="#cfc6dc"; c.globalAlpha=0.5; c.fillRect(dx+dw*0.18,dy-2,dw*0.2,2.5); c.globalAlpha=1; }
+  if(roomOn("mug")){ const mx=dx+dw*0.36, s2=k*0.7; c.fillStyle="#ff4d6d"; c.fillRect(mx,dy-6*s2,5*s2,6*s2); c.strokeStyle="#ff4d6d"; c.lineWidth=1.2*s2; c.beginPath(); c.arc(mx+5.5*s2,dy-3*s2,1.6*s2,-1.4,1.4); c.stroke();
+    if(mv){ c.strokeStyle="rgba(255,255,255,.25)"; c.lineWidth=1.2; for(let i=0;i<2;i++){ const ph=(t/1600+i/2)%1, bx=mx+(1.5+i*2)*s2, by=dy-7*s2-ph*8*s2; c.globalAlpha=1-ph; c.beginPath(); c.moveTo(bx,by+4); c.quadraticCurveTo(bx+Math.sin(t/300+i)*3,by+1,bx,by-3); c.stroke(); } c.globalAlpha=1; } }
+  // ---- sandalye ve karakter
+  const hx=dx-4*k, seat=fY-10*k;
+  c.fillStyle="#1e1428"; c.fillRect(hx-5*k,seat,9*k,2.5); c.fillRect(hx-5*k,seat-15*k,2.2,15*k); c.fillRect(hx-4.5*k,seat,2,fY-seat); c.fillRect(hx+2.5*k,seat,2,fY-seat);
+  if(S.hero) hero(c,hx,fY,k,S.hero,"sit",t);
+  if(roomOn("cat")){ const cx=hx-17*k, s2=k*0.95, br=1+Math.sin(t/900*mv)*0.03; c.fillStyle="#5a5068"; c.beginPath(); c.ellipse(cx,fY-3*s2,7*s2,3.6*s2*br,0,Math.PI,0); c.fill(); c.fillRect(cx-7*s2,fY-3*s2,14*s2,3*s2);
+    c.beginPath(); c.arc(cx+6*s2,fY-3.5*s2,3*s2,0,7); c.fill(); c.beginPath(); c.moveTo(cx+4*s2,fY-5.5*s2); c.lineTo(cx+4.6*s2,fY-8.2*s2); c.lineTo(cx+6*s2,fY-6.2*s2); c.fill(); c.beginPath(); c.moveTo(cx+6.6*s2,fY-6.2*s2); c.lineTo(cx+8*s2,fY-8.2*s2); c.lineTo(cx+8.4*s2,fY-5.4*s2); c.fill();
+    c.strokeStyle="#c3f53c"; c.lineWidth=0.8; c.beginPath(); c.moveTo(cx+5*s2,fY-3.6*s2); c.lineTo(cx+6*s2,fY-3.6*s2); c.moveTo(cx+7*s2,fY-3.6*s2); c.lineTo(cx+8*s2,fY-3.6*s2); c.stroke();
+    c.strokeStyle="#5a5068"; c.lineWidth=1.6*s2; c.beginPath(); c.moveTo(cx-6.5*s2,fY-1*s2); c.quadraticCurveTo(cx-11*s2,fY-1*s2+Math.sin(t/500*mv)*2*s2,cx-10*s2,fY-5*s2+Math.sin(t/500*mv)*3*s2); c.stroke(); }
+  c.fillStyle="rgba(13,8,20,.18)"; c.fillRect(0,0,W,H);
 }
-
+function fitCanvas(cv){ const c=cv.getContext("2d"), dpr=Math.min(2,devicePixelRatio||1), W=cv.clientWidth, H=cv.clientHeight; if(!W||!H) return null;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)} c.setTransform(dpr,0,0,dpr,0,0); return [c,W,H]; }
+function drawFocus(cv,t){ const f=fitCanvas(cv); if(!f) return; const [c,W,H]=f;
+  if(S.focus&&S.focus.phase==="break") return drawBreak(c,W,H,t);
+  drawRoom(c,W,H,t,false); }
 function drawPrev(t){ const cv=$("heroPrev"), c=cv.getContext("2d"), dpr=Math.min(2,devicePixelRatio||1), W=cv.clientWidth, H=cv.clientHeight; if(!W) return;
   if(cv.width!==Math.round(W*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)} c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,W,H);
   hero(c,W/2,H-22,4.4,pick,"cheer",t); }
@@ -1616,7 +1700,8 @@ function drawPrev(t){ const cv=$("heroPrev"), c=cv.getContext("2d"), dpr=Math.mi
 let lastFrame=0;
 function loop(t){ requestAnimationFrame(loop); const gap=(sheetOpen&&$("focusOv").hidden&&$("picker").hidden)?125:33; if(t-lastFrame<gap-4) return; lastFrame=t;
   if(!$("focusOv").hidden) drawFocus($("focusScene"),t); else drawScene($("scene"),t,false); if(!$("picker").hidden) drawPrev(t);
-  if(!$("mini").hidden) drawScene($("miniScene"),t,true); }
+  if(!$("mini").hidden) drawScene($("miniScene"),t,true);
+  const rp=sheetOpen&&tab==="shelter"&&$("roomPrev"); if(rp){ const f=fitCanvas(rp); if(f) drawRoom(f[0],f[1],f[2],t,true); } }
 requestAnimationFrame(loop);
 
 /* ---------- zombi kartları ---------- */
